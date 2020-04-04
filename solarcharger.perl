@@ -39,7 +39,7 @@ my %commandlineoption = JNX::Configuration::newFromDefaults(
     $SIG{'SIGABRT'} = \&killchildren;
 
 
-   if( my $childid = createChildProcess('JNX::UDPServer',\&runJNX::UDPServer,$localaddress,$serverport) ) {  push(@childprocesses,$childid); }
+   if( my $childid = createChildProcess('JNX::UDPServer',\&runUDPServer,$localaddress,$serverport) ) {  push(@childprocesses,$childid); }
    if( my $childid = createChildProcess('TCPServer',\&runTCPServer,$localaddress,$serverport) ) {  push(@childprocesses,$childid); }
 
     JNX::JLog::trace "Father: waiting for children to exit";
@@ -70,7 +70,7 @@ sub createChildProcess
 }
 
 
-sub runJNX::UDPServer
+sub runUDPServer
 {
     my($localaddress,$serverport) = @_;
 
