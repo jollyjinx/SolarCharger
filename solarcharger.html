@@ -1,0 +1,404 @@
+<!DOCTYPE html> 
+<html> 
+<head> 
+<meta name = "viewport" content = "width = device-width">
+<title>Jollys SolarCharger</title>
+<style>
+body {
+	font: 12pt Helvetica, sans-serif;
+	max-width: 400px;
+}
+    
+/* Hide table headers (but not display: none;, for accessibility) */
+#data thead tr {
+    position: absolute;
+    top: -9999px;
+    left: -9999px;
+}
+#data tr {
+    border: 1px solid #ccc;
+    margin-bottom: 25px;
+}
+#data{margin:0 0 20px 0;}
+#data table{width:100%;border-collapse:collapse;}
+#data th{background:#43904B;font-weight:bold;color:#FFFFFF;}
+
+select { font: 12pt Helvetica, sans-serif; }
+</style>
+
+<script type="text/javascript">
+
+var getJSON = function(url,data, callback) {
+                                            var xhr = new XMLHttpRequest();
+                                            xhr.open("POST", url, true);
+                                            //xhr.open('GET', url, true);
+                                            xhr.responseType = 'json';
+                                            xhr.onload = function() {
+                                            var status = xhr.status;
+                                            if (status === 200) {
+                                            callback(null, xhr.response);
+                                            } else {
+                                            callback(status, xhr.response);
+                                            }
+                                            };
+                                              // Sending data with the request
+                                            xhr.send(data);
+                                        };
+
+var keyMapping      =   {
+                            'settings.chargetype'                   : 'charge type',
+                            'settings.chargespeed'                  : 'charge speed',
+                            'settings.solarsafety'                  : 'solar safety',
+                            'settings.chargelimit'                  : 'charge limit',
+
+                            'status.runtime'                        : 'Script Run Time',
+                            'status.timestring'                     : 'Last Update',
+                            'status.solar.generation'               : 'Generation (W)',
+                            'status.solar.limitation'               : 'Limit (W)',
+                            'status.solar.feedin'                   : 'Feed In (W)',
+                            'status.solar.gridusage'                : 'Grid Usage (W)',
+                            'status.solar.voltage'                  : 'Grid Voltage (V)',
+                            'status.solar.generation_counter'       : 'Sum Generation (Ws)',
+                            'status.solar.feedin_counter'           : 'Sum Feed In (Ws)',
+                            'status.solar.grid_counter'             : 'Sum Grid Usage (Ws)',
+
+                            'status.charger.automode'               : 'Automatic Mode',
+                            'status.charger.connected'              : 'car connected',
+                            'status.charger.ischarging'             : 'is charging',
+                            'status.charger.amperage'               : 'Amperage (A)',
+
+                            'status.derived.houseconsumption'       : 'House Consum (W)',
+                            'status.derived.housespare'             : 'House Spare (W)',
+                            'status.derived.chargepower'            : 'ChargePower (W)',
+
+                            'status.car.soc'                        : 'Soc (%)',
+                            'status.car.decently_charged'           : 'Decent Charged',
+                            'status.car.fully_charged'              : 'Full Charged',
+                            'status.car.chargelimit'                : 'Charge Limit (%)',
+                            'status.car.pvchargelimit'              : 'PV charge limit (%)',
+
+                            'status.action.shouldcharge'            : 'Should charge',
+                            'status.action.amperage'                : 'amperage',
+                            'status.action.nextchange'              : 'nextchange',
+                            'status.action.nextchange_string'       : 'nextchange_string',
+                            'status.action.lastchange_string'       : 'lastchange_string',
+
+                            'status.average.time'                   : 'Average time (s)',
+                            'status.average.generation'             : 'Avg Generation (W)',
+                            'status.average.feedin'                 : 'Avg Feedin (W)',
+                            'status.average.gridusage'              : 'Avg. Grid Usage (W)',
+                            'status.average.chargepower'            : 'Avg.Charge (W)',
+                        };
+
+var structuremapping =  [
+                            {
+                                'name'  : 'Settings',
+                                'rows'  : [
+                                            'settings.chargetype',
+                                            'settings.chargespeed',
+                                            'settings.solarsafety',
+                                            'settings.chargelimit',
+                                          ],
+                            },
+                            {
+                                'name'  : 'Status',
+                                'rows'  : [
+                                            'status.runtime',
+                                            'status.timestring',
+                                          ],
+                            },
+                            {
+                                'name'  : 'Charger',
+                                'rows'  : [
+                                          'status.charger.automode',
+                                          'status.charger.connected',
+                                          'status.charger.ischarging',
+                                          'status.charger.amperage',
+                                          ],
+                            },
+                            {
+                                 'name'  : 'Car',
+                                 'rows'  : [
+                                           'status.car.soc',
+                                           'status.car.decently_charged',
+                                           'status.car.fully_charged',
+                                           'status.car.chargelimit',
+                                           'status.car.pvchargelimit',
+                                           ],
+                             },
+                             {
+                                'name'  : 'Solar',
+                                'rows'  : [
+                                          'status.solar.generation',
+                                          'status.solar.limitation',
+                                          'status.solar.feedin',
+                                          'status.solar.gridusage',
+                                          'status.solar.voltage',
+                                          'status.solar.generation_counter',
+                                          'status.solar.feedin_counter',
+                                          'status.solar.grid_counter',
+                                          ],
+                            },
+                            {
+                                'name'  : 'Derived',
+                                'rows'  : [
+                                          'status.derived.houseconsumption',
+                                          'status.derived.housespare',
+                                          'status.derived.chargepower',
+                                          ],
+                            },
+                            {
+                                 'name'  : 'Action',
+                                 'rows'  : [
+                                           'status.action.shouldcharge',
+                                           'status.action.amperage',
+                                           'status.action.nextchange',
+                                           'status.action.nextchange_string',
+                                           'status.action.lastchange_string',
+                                           ]
+                             },
+                             {
+                                'name'  : 'Average',
+                                'rows'  : [
+                                          'status.average.time',
+                                          'status.average.generation',
+                                          'status.average.feedin',
+                                          'status.average.gridusage',
+                                          'status.average.chargepower',
+                                          ],
+                            }
+                        ];
+
+var valueMapping    =   {
+                            'KWH_PER_100KM' : 'kWh/100km',
+                            'KM'            : 'km',
+                            'UNLOCKED'      : '<span style="color:darkred">UNLOCKED</span>',
+                        };
+
+function niceValue(value)
+{
+    var valueString = '' + value;
+
+    if( null != (value = valueMapping[valueString]) )
+    {
+        return value;
+    }
+    if( -1 != valueString.indexOf(' ') )
+    {
+        return valueString;
+    }
+    return valueString.toLowerCase().split('_').join(' ');
+}
+
+function niceName(key)
+{
+    if( keyname = keyMapping[key] )
+    {
+        return keyname;
+    }
+
+    if( keys = key.split('.') )
+    {
+        var key = keys.pop();
+
+        if( keyname = keyMapping[key] )
+        {
+            return keyname;
+        }
+
+        return key
+    }
+    return key;
+}
+
+
+function valueAtPath(object, path)
+{
+    if( !object || path.length === 0) return object
+    return valueAtPath(object[path.shift()], path)
+}
+
+function valueAtKeyPath(object,path)
+{
+    var keys    = path.split('.');
+    return valueAtPath(object,keys);
+}
+
+function createHTMLStructure(structure)
+{
+    var html = '';
+
+    for(sectionid in structure)
+    {
+        var section = structure[sectionid];
+
+        if( sectionname = section['name'] )
+        {
+            html = html + '<tr style="height:1.5em;"><th width="190" id="section' + section['name'] +'" align="left">' + section['name'] + '</th><th<th width="50"></th></tr>';
+        }
+
+        var rows = section['rows'];
+
+        for( row_number in rows )
+        {
+            var row = rows[row_number];
+
+            if( (null != (key = niceName(row)) ) )
+            {
+                html = html + '<tr style="display:none;" id="tr_' + row + '" align="right"><td>' + key + '</td><td id="td_' + row + '" align="right"></td></tr>';
+            }
+        }
+    }
+    return html;
+}
+
+
+function updateVisibleStructure(structure,jsonData)
+{
+    for(sectionid in structure)
+    {
+        var rows = structure[sectionid]['rows'];
+
+        for( row_number in rows )
+        {
+            var row = rows[row_number];
+
+            if( (null != (key = niceName(row)) ) )
+            {
+                var trId = 'tr_' + row;
+
+                if( (null != (value = valueAtKeyPath(jsonData,row))) )
+                {
+                    var tdId = 'td_' + row;
+
+                    document.getElementById(trId).style     = null;
+                    document.getElementById(tdId).innerHTML = niceValue(value);
+                }
+                else
+                {
+                    document.getElementById(trId).style = 'display:none';
+                }
+            }
+        }
+    }
+}
+
+
+function varschanged(whatschanged)
+{
+    var json = {};
+
+    json[whatschanged] = document.getElementById(whatschanged).value;
+
+    var jsondata = JSON.stringify(json);
+
+    load(jsondata);
+}
+function dateToLocalISO(date)
+{
+    const off    = date.getTimezoneOffset()
+    const absoff = Math.abs(off)
+    return (new Date(date.getTime() - off*60*1000).toISOString().substr(0,23) +
+            (off > 0 ? '-' : '+') +
+            (absoff / 60).toFixed(0).padStart(2,'0') + ':' +
+            (absoff % 60).toString().padStart(2,'0'))
+}
+
+var timer;
+
+function load(data)
+{
+    var jsondata = '' + data;
+    var scriptstartdate = new Date();
+
+    getJSON('json?'+ scriptstartdate.getMilliseconds(),jsondata,
+    function(err, jsonData)
+    {
+        if (err !== null)
+        {
+            alert('Something went wrong: ' + err);
+        }
+        else
+        {
+            var settingElements = document.querySelectorAll("select")
+
+            for( let setttingelement of settingElements )
+            {
+                var elementid = setttingelement.id;
+
+                if( element = document.getElementById(elementid) )
+                {
+                    if( value = valueAtKeyPath(jsonData, elementid ) )
+                    {
+                        element.hidden = false;
+                        element.onchange = function(){ varschanged(this.id); };
+
+                        var i;
+                        for (i = 0; i < element.length; i++)
+                        {
+                            if(element[i].value == value)
+                            {
+                                element[i].selected = true;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        element.hidden = true;
+                    }
+                }
+            }
+
+
+            var generatedTableHead  =  '<tr><td colspan="2" align="right">' + dateToLocalISO(scriptstartdate) + '</td></tr>';
+
+            var myHTML  = '';
+
+            var generatedTableBody = createHTMLStructure(structuremapping);
+
+            myHTML  = myHTML + '<table>' + generatedTableHead + generatedTableBody +  '</table>';
+            document.getElementById('data').innerHTML = myHTML;
+
+            updateVisibleStructure(structuremapping,jsonData);
+        }
+        clearTimeout(timer);
+        timer = setTimeout(function () { load(); }, 2000);
+    });
+}
+
+</script>
+</head>
+<body onload="load('{}')">
+    <h2 style="color:green;">SolarCharger</h1>
+    <div class="data">
+    <table>
+        <tr><td align="left"><select id="settings.chargetype" hidden="true">
+            <option value="immediate">Charge Immediately</option>
+            <option value="solar">Solar Charge</option>
+        </select></td></tr>
+
+        <tr><td align="left"><select id="settings.chargespeed" hidden="true">
+            <option value="6">Charge Speed Minimum (6A / 1380W)</option>
+            <option value="10">Charge Speed Minimum (10A / 2300W)</option>
+            <option value="20">Charge Speed Maximum (20A / 4600W )</option>
+        </select></td></tr>
+
+        <tr><td align="left"><select id="settings.solarsafety" hidden="true">
+            <option value="-1">Don't feed in</option>
+            <option value="0">Safety margin 0 W</option>
+            <option value="200">Safety margin 200 W</option>
+        </select></td></tr>
+
+        <tr><td align="left"><select id="settings.chargelimit" hidden="true">
+            <option value="60">60%</option>
+            <option value="70">70%</option>
+            <option value="80">80%</option>
+            <option value="90">90%</option>
+            <option value="100">Full</option>
+        </select></td></tr>
+    </table>
+    </div>
+    <div class="data" id="data"/></div>
+
+</body>
+</html>
