@@ -5,7 +5,7 @@ The script reads the live values from the PV system and the House consumption ( 
 
 It furthermore generates a website (default is http://localhost:5145 ) which lets you set the default settings.
 
-I do have a BMW and if that's hat home it only gets charged when it's below the full state. I do have a 70% feed in rule so I charge the car regardless of it's charging state if the solar system would be cut down to 70% otherwise. It will charge then with 6A and only until 90%.
+I do have a BMW and if that's hat home it only gets charged when it's below a set state e.g. 80%. I do have a 70% feed in rule so I charge the car regardless of it's charging state if the solar system would be cut down to 70% otherwise. It will charge then with 6A and only until 90%.
 
 
 
