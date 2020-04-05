@@ -33,6 +33,14 @@ I do have a BMW and if that's hat home it only gets charged when it's below a se
 
 ## Configuration
 
-Change the config.ini file to use the ipaddresses/names for your setup. Start the script for testing with perl startcharger.perl --help
+My scripts support --help as commandlineoption as well as configuration via config file. To try out if it's seeing the solar inverter correctly try out the following:
+
+    perl solarlogger.perl --SMAAddress=192.168.10.10
+
+The solarcharger script is named solarcharger.perl and requires at least two things SMAAddress and PhoneixAddress so the simples of calls would be
+
+    perl solarcharger.perl --SMAAddress=192.168.10.10 --PhoenixAddress=192.168.10.11
+
+Change the config.ini file to use the ipaddresses/names for your setup. Start the script for testing with perl startcharger.perl --debug to see what's happening when you have problems.
 
 
