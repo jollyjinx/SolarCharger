@@ -13,8 +13,8 @@ my  $pvReader    = JNX::SMAReader->new() || die "Could not create smareader";
 
 while(1)
 {
-    $pvReader->sleepReading($commandlineoption{'SMAAddress'});
-    $pvReader->showLoop($commandlineoption{'SMAAddress'});
-   # $pvReader->showLoopLine();
+    #$pvReader->sleepReading($commandlineoption{'looptime'});
+    $pvReader->showLoop($commandlineoption{'looptime'});
+    $pvReader->showLoopLine();
 }
 

@@ -116,6 +116,7 @@ use constant debug => 'debug';
 use constant historysize => 'historysize';
 use constant minimumchargecurrent => 'minimumchargecurrent';
 use constant maximumchargecurrent => 'maximumchargecurrent';
+use constant feedinlimit => 'feedinlimit';
 use constant settingsfilename => 'settingsfilename';
 
 use constant pvReader       => 'pvReader';
@@ -137,10 +138,11 @@ use JNX::Configuration;
 
 
 my %commandlineoption = JNX::Configuration::newFromDefaults(
-                                                                JNX::SolarWorker::Options::minimumchargecurrent  => [6,'number'],
-                                                                JNX::SolarWorker::Options::maximumchargecurrent  => [20,'number'],
-                                                                JNX::SolarWorker::Options::historysize           => [10,'number'],
-                                                                JNX::SolarWorker::Options::settingsfilename      => ['.solarworker.settings','string'],
+                                                                JNX::SolarWorker::Options::minimumchargecurrent => [6,'number'],
+                                                                JNX::SolarWorker::Options::maximumchargecurrent => [20,'number'],
+                                                                JNX::SolarWorker::Options::feedinlimit          => [6300*0.65 ,'number'],
+                                                                JNX::SolarWorker::Options::historysize          => [10,'number'],
+                                                                JNX::SolarWorker::Options::settingsfilename     => ['.solarworker.settings','string'],
                                                             );
 
 sub new
@@ -426,10 +428,19 @@ sub generateAction
                     JNX::JLog::debug "Fully charged - not charging";
                     $charger_shouldcharge = 0;
                 }
-                elsif( $self->{JNX::SolarWorker::SelfKey::decently_charged} && ( $$solarvalues{JNX::SolarWorker::Solar::generation} < $$solarvalues{JNX::SolarWorker::Solar::limitation} ) )
+                elsif( $self->{JNX::SolarWorker::SelfKey::decently_charged} )
                 {
-                    JNX::JLog::debug "Decently charged and no pv limit";
-                    $charger_shouldcharge = 0;
+                    if( $housespare > $self->{JNX::SolarWorker::Options::feedinlimit} )
+                    {
+                        my $spareamperage   = int( ($housespare - $self->{JNX::SolarWorker::Options::feedinlimit}) / $$solarvalues{JNX::SolarWorker::Solar::voltage} );
+                        $charger_amperage = clamp($spareamperage,$minimumchargecurrent,$maximumchargecurrent);
+                        JNX::JLog::trace "spareamperage: $spareamperage charger_amperage: $charger_amperage minimumchargecurrent:$minimumchargecurrent maximumchargecurrent:$maximumchargecurrent";
+                    }
+                    else
+                    {
+                        JNX::JLog::debug "Decently charged and no pv limit";
+                        $charger_shouldcharge = 0;
+                    }
                 }
             }
         }
@@ -538,6 +549,7 @@ sub command
     {
         $self->{JNX::SolarWorker::SelfKey::settings}{JNX::SolarWorker::Car::chargelimit}        = $$input{JNX::SolarWorker::WebSettings::chargelimit};
         $self->{JNX::SolarWorker::SelfKey::carConnector}->{JNX::SolarWorker::Car::chargelimit}  = $$input{JNX::SolarWorker::WebSettings::chargelimit};
+        $self->{JNX::SolarWorker::SelfKey::decently_charged} = 0;
         $settingschanged = 1;
     }
     if( $$input{JNX::SolarWorker::WebSettings::chargespeed} =~ m/^(\d+)$/o )
