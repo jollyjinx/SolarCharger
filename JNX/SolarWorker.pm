@@ -80,6 +80,7 @@ use constant Average => 'average';
 package JNX::SolarWorker::SelfKey;
 use constant debug => 'debug';
 use constant historyarrayref => 'historyarrayref';
+use constant feedinlimit => 'feedinlimit';
 use constant historysize => 'historysize';
 use constant minimumchargecurrent => 'minimumchargecurrent';
 use constant maximumchargecurrent => 'maximumchargecurrent';
@@ -157,6 +158,7 @@ sub new
 
     $self->{JNX::SolarWorker::SelfKey::minimumchargecurrent}  = $options{JNX::SolarWorker::Options::minimumchargecurrent}  || $commandlineoption{JNX::SolarWorker::Options::minimumchargecurrent};
     $self->{JNX::SolarWorker::SelfKey::maximumchargecurrent}  = $options{JNX::SolarWorker::Options::maximumchargecurrent}  || $commandlineoption{JNX::SolarWorker::Options::maximumchargecurrent};
+    $self->{JNX::SolarWorker::SelfKey::feedinlimit}           = $options{JNX::SolarWorker::Options::feedinlimit}           || $commandlineoption{JNX::SolarWorker::Options::feedinlimit};
     $self->{JNX::SolarWorker::SelfKey::historysize}           = $options{JNX::SolarWorker::Options::historysize}           || $commandlineoption{JNX::SolarWorker::Options::historysize};
     $self->{JNX::SolarWorker::SelfKey::settingsfilename}      = $options{JNX::SolarWorker::Options::settingsfilename}      || $commandlineoption{JNX::SolarWorker::Options::settingsfilename};
 
@@ -430,15 +432,20 @@ sub generateAction
                 }
                 elsif( $self->{JNX::SolarWorker::SelfKey::decently_charged} )
                 {
-                    if( $housespare > $self->{JNX::SolarWorker::Options::feedinlimit} )
+                    my $startcharging = $self->{JNX::SolarWorker::Options::feedinlimit} - $$solarvalues{JNX::SolarWorker::Solar::voltage};
+                    my $housespare    = $$derivedvalues{JNX::SolarWorker::Derived::housespare};
+
+                    JNX::JLog::trace "decently charged: currentspare: $housespare startcharging: $startcharging feedinlimit:$self->{JNX::SolarWorker::Options::feedinlimit}";
+
+                    if( $housespare > $startcharging )
                     {
-                        my $spareamperage   = int( ($housespare - $self->{JNX::SolarWorker::Options::feedinlimit}) / $$solarvalues{JNX::SolarWorker::Solar::voltage} );
+                        my $spareamperage   = int( ($housespare - $startcharging ) / $$solarvalues{JNX::SolarWorker::Solar::voltage} );
                         $charger_amperage = clamp($spareamperage,$minimumchargecurrent,$maximumchargecurrent);
-                        JNX::JLog::trace "spareamperage: $spareamperage charger_amperage: $charger_amperage minimumchargecurrent:$minimumchargecurrent maximumchargecurrent:$maximumchargecurrent";
+                        JNX::JLog::trace "decently charged: $spareamperage charger_amperage: $charger_amperage minimumchargecurrent:$minimumchargecurrent maximumchargecurrent:$maximumchargecurrent";
                     }
                     else
                     {
-                        JNX::JLog::debug "Decently charged and no pv limit";
+                        JNX::JLog::debug "decently charged: and no pv limit";
                         $charger_shouldcharge = 0;
                     }
                 }
