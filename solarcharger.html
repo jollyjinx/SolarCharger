@@ -72,6 +72,7 @@ var keyMapping      =   {
                             'status.derived.chargepower'            : 'ChargePower (W)',
 
                             'status.car.soc'                        : 'Soc (%)',
+                            'status.car.carname'                    : 'Name',
                             'status.car.decently_charged'           : 'Decent Charged',
                             'status.car.fully_charged'              : 'Full Charged',
                             'status.car.chargelimit'                : 'Charge Limit (%)',
@@ -119,6 +120,7 @@ var structuremapping =  [
                             {
                                  'name'  : 'Car',
                                  'rows'  : [
+                                           'status.car.carname',
                                            'status.car.soc',
                                            'status.car.decently_charged',
                                            'status.car.fully_charged',
@@ -328,7 +330,9 @@ function load(data)
 
                 if( element = document.getElementById(elementid) )
                 {
-                    if( value = valueAtKeyPath(jsonData, elementid ) )
+                    let value = valueAtKeyPath(jsonData, elementid );
+
+                    if( null != value )
                     {
                         element.hidden = false;
                         element.onchange = function(){ varschanged(this.id); };

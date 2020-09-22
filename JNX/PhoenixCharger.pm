@@ -105,7 +105,7 @@ sub reset
 sub car_is_connected
 {
     my($self) = @_;
-    my $value = shift $self->readAddress(JNX::PhoenixCharger::EV_CAR_STATUS);
+    my $value = shift @{$self->readAddress(JNX::PhoenixCharger::EV_CAR_STATUS)};
 
     print STDERR "car_is_connected: read:".Data::Dumper->Dumper($value)."\n" if $self->{debug};
     
@@ -120,7 +120,7 @@ sub car_is_connected
 sub car_is_charging
 {
     my($self) = @_;
-    my $value = shift $self->readAddress(JNX::PhoenixCharger::EV_CAR_STATUS);
+    my $value = shift @{$self->readAddress(JNX::PhoenixCharger::EV_CAR_STATUS)};
 
     print STDERR "car_is_charging: read:".Data::Dumper->Dumper($value)."\n" if $self->{debug};
 
@@ -148,7 +148,7 @@ sub automatic_charging_enabled
 sub manual_charging_button
 {
     my($self) = @_;
-    my $value = (shift $self->readAddress(JNX::PhoenixCharger::MANUAL_CHARGING_BUTTON)) ? 1 : 0;
+    my $value = (shift @{$self->readAddress(JNX::PhoenixCharger::MANUAL_CHARGING_BUTTON)}) ? 1 : 0;
 
     print STDERR "manual_charging_button: :".Data::Dumper->Dumper($value)."\n" if $self->{debug};
 
@@ -160,7 +160,7 @@ sub manual_charging_button
 sub charging_is_enabled
 {
     my($self) = @_;
-    my $value = ( shift $self->readAddress(JNX::PhoenixCharger::ENABLE_CHARGING) ) ? 1 : 0;
+    my $value = ( shift @{$self->readAddress(JNX::PhoenixCharger::ENABLE_CHARGING)} ) ? 1 : 0;
 
     print STDERR "charging_is_enabled: :".Data::Dumper->Dumper($value)."\n" if $self->{debug};
 
@@ -198,7 +198,7 @@ sub set_charging_enabled
 sub current_charge_current
 {
     my($self) = @_;
-    my $value = shift $self->readAddress(JNX::PhoenixCharger::CHARGE_CURRENT);
+    my $value = shift @{$self->readAddress(JNX::PhoenixCharger::CHARGE_CURRENT)};
 
     print STDERR "current_charge_current: :".Data::Dumper->Dumper($value)."\n" if $self->{debug};
 

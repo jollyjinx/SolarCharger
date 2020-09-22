@@ -4,13 +4,14 @@ use utf8;
 
 
 package JNX::HTTPToUDPServer;
-
+use Errno qw( EINTR );
 use POSIX;
 use Time::HiRes qw(usleep);
 use Data::Dumper;
 use IO::Socket::INET;
 use Socket qw(SOL_SOCKET SO_RCVBUF IPPROTO_IP IP_TTL);
 use JSON::PP;
+use Encode /encode/;
 
 use JNX::JLog;
 use JNX::Configuration;
@@ -21,7 +22,7 @@ my %commandlineoption = JNX::Configuration::newFromDefaults(
                                                                 'LocalAddr'         => ['0.0.0.0','string'],
                                                                 'LocalPort'         => [5145,'number'],
 
-                                                                'UDPTimeoutTime'    => [2,'number'],
+                                                                'UDPTimeoutTime'    => [3,'number'],
                                                                 'ServerName'        => ['Jollys Simple Solar Charger','string'],
                                                                 'FileToServe'       => ['solarcharger.html','string'],
                                                             );
@@ -55,21 +56,55 @@ sub run
     my($self) = @_;
     JNX::JLog::trace();
 
+    my %children;
+
     my $debug=0;
     my  $tcpserversocket = IO::Socket::INET->new( LocalAddr => $self->{LocalAddr}, LocalPort => $self->{LocalPort}, Listen => 5, Reuse => 1)  || die "Cannot create socket: $@";
 
-    while( my $client = $tcpserversocket->accept() )
+    $SIG{CHLD} = sub {
+        # don't change $! and $? outside handler
+        local ($!, $?);
+        while ( (my $pid = waitpid(-1, WNOHANG)) > 0 ) {
+            delete $children{$pid};
+            # cleanup_child($pid, $?);
+            JNX::JLog::debug "child died";
+        }
+        JNX::JLog::debug "child died2";
+    };
+    $SIG{'HUP'}     = sub { JNX::JLog::error "Sig HUP received"; };
+    $SIG{'INT'}     = sub { JNX::JLog::error "Sig INT received";  };
+    $SIG{'QUIT'}    = sub { JNX::JLog::error "Sig QUIT received";  };
+    $SIG{'ILL'}     = sub { JNX::JLog::error "Sig ILL received";  };
+    $SIG{'TRAP'}    = sub { JNX::JLog::error "Sig TRAP received";  };
+    $SIG{'ABRT'}    = sub { JNX::JLog::error "Sig ABRT received";  };
+    $SIG{'TERM'}    = sub { JNX::JLog::error "Sig TERM received";  };
+    $SIG{'IGABRT'}  = sub { JNX::JLog::error "Sig IGABRT received"; };
+    $SIG{'SIGABRT'} = sub { JNX::JLog::error "Sig SIGABRT received"; };
+
+    ACCEPTLOOP: while( 1 )
     {
-        if( fork() == 0)  #child
+        while( my $client = $tcpserversocket->accept() )
         {
-            $tcpserversocket->close; # not needed in child
-            $self->httpclient($client);
+            my $pid = fork();
+
+            if( $pid == 0)  #child
+            {
+                $tcpserversocket->close; # not needed in child
+                $self->httpclient($client);
+                exit;
+            }
+            else
+            {
+                $children{$pid} = 1;
+
+                $client->close; # not needed in parent
+                # wait();
+            }
         }
-        else
-        {
-            $client->close; # not needed in parent
-            wait();
-        }
+
+        next ACCEPTLOOP if $! == EINTR;
+        JNX::JLog::fatal "could not accept(): $!";
+        exit;
     }
     exit;
 }
@@ -160,7 +195,6 @@ sub workoncommand
     if( $$request{command} eq 'GET' && $$request{path} eq '/' )
     {
         my $content = `cat "$self->{FileToServe}"`;
-
         print $client "HTTP/1.1 200 OK\n";
         print $client "Server: $self->{ServerName} 1.0\n";
         print $client "Content-Type: text/html\n";
@@ -172,7 +206,9 @@ sub workoncommand
     elsif( $$request{command} eq 'POST' )
     {
         my $content = $self->sendAndReceiveJSONviaUDP( $$request{body} );
-
+        use bytes;
+        JNX::JLog::trace "Sending back: $content";
+        
         print $client "HTTP/1.1 200 OK\n";
         print $client "Server: $self->{ServerName} 1.0\n";
         print $client "Content-Type: application/json\n";
@@ -189,6 +225,7 @@ sub workoncommand
         print $client "Connection: close\n";
         print $client "\r\n";
         print $client "<html><head></head><body><h1>Error</h2></body></html>";
+        print $client "\r\n";
     }
     return 1;
 }

@@ -23,6 +23,10 @@ use constant CURRENT_GRID_USAGE         => 30865;
 use constant TOTAL_YIELD_COUNTER        => 30513;
 use constant TOTAL_FEEDIN_COUNTER       => 30583;
 use constant TOTAL_GRID_COUNTER         => 30581;
+use constant DAILY_YIELD                => 30517; # 30535;
+use constant TEMPERATURE                => 34113;
+use constant CURRENT_STRINGA_POWER      => 30773;
+use constant CURRENT_STRINGB_POWER      => 30961;
 
 
 my %commandlineoption = JNX::Configuration::newFromDefaults(
@@ -62,7 +66,7 @@ sub new
                                     31257 => { modbussize => 32,  wordcount => 2, contenttype => 'UInt32',    modbustype => 'register', access=>'r', loop => 1, devicetype => 'solar',   name => 'Grid current (V) Phase C'},
 
 #                                    30517 => { modbussize => 64,  wordcount => 4, contenttype => 'UInt64',    modbustype => 'register', access=>'r', loop => 1, devicetype => 'solar',   name => 'Daily yield(Wh)'       },
-                                     30535 => { modbussize => 32,  wordcount => 2, contenttype => 'UInt32',    modbustype => 'register', access=>'r', loop => 1, devicetype => 'solar',   name => 'Daily yield(Wh)'       },
+                                     JNX::SMAReader::DAILY_YIELD => { modbussize => 64,  wordcount => 4, contenttype => 'UInt64',    modbustype => 'register', access=>'r', loop => 1, devicetype => 'solar',   name => 'Daily yield(Wh)'       },
                                      JNX::SMAReader::TOTAL_YIELD_COUNTER => { modbussize => 64,  wordcount => 4, contenttype => 'UInt64',    modbustype => 'register', access=>'r', loop => 1, devicetype => 'solar',   name => 'Total yield(Wh)'       },
 
                                     JNX::SMAReader::TOTAL_GRID_COUNTER => { modbussize => 32,  wordcount => 2, contenttype => 'UInt32',    modbustype => 'register', access=>'r', loop => 1, devicetype => 'solar',   name => 'Grid Counter (Wh)'     },
@@ -86,11 +90,11 @@ sub new
 #                                    JNX::SMAReader::CURRENT_GENERATION => { modbussize => 32,  wordcount => 2, contenttype => 'SInt32',    modbustype => 'register', access=>'r', loop => 1, devicetype => 'solar',   name => 'Power (W)'          },
 
 
-                                    30773 => { modbussize => 32,  wordcount => 2, contenttype => 'SInt32',    modbustype => 'register', access=>'r', loop => 1, devicetype => 'solar',   name => 'DC power1(W)'          },
-                                    30961 => { modbussize => 32,  wordcount => 2, contenttype => 'SInt32',    modbustype => 'register', access=>'r', loop => 1, devicetype => 'solar',   name => 'DC power2(W)'          },
+                                    JNX::SMAReader::CURRENT_STRINGA_POWER => { modbussize => 32,  wordcount => 2, contenttype => 'SInt32',    modbustype => 'register', access=>'r', loop => 1, devicetype => 'solar',   name => 'DC power1(W)'          },
+                                    JNX::SMAReader::CURRENT_STRINGB_POWER => { modbussize => 32,  wordcount => 2, contenttype => 'SInt32',    modbustype => 'register', access=>'r', loop => 1, devicetype => 'solar',   name => 'DC power2(W)'          },
  
                                     34109 => { modbussize => 32,  wordcount => 2, contenttype => 'SInt32',    modbustype => 'register', access=>'r', loop => 1, devicetype => 'solar',   name => 'Heat sink temp(C)'     },
-                                    34113 => { modbussize => 32,  wordcount => 2, contenttype => 'SInt32',    modbustype => 'register', access=>'r', loop => 1, devicetype => 'all',     name => 'Internal temp(C)'      },
+                                    JNX::SMAReader::TEMPERATURE => { modbussize => 32,  wordcount => 2, contenttype => 'SInt32',    modbustype => 'register', access=>'r', loop => 1, devicetype => 'all',     name => 'Internal temp(C)'      },
 #                                    34125 => { modbussize => 32,  wordcount => 2, contenttype => 'SInt32',    modbustype => 'register', access=>'r', loop => 1, devicetype => 'all',     name => 'External temp(C)'      },
 
                                     JNX::SMAReader::CURRENT_FEEDIN => { modbussize => 32,  wordcount => 2, contenttype => 'SInt32',    modbustype => 'register', access=>'r', loop => 1, devicetype => 'solar',   name => 'Feed in(W)'            },
@@ -167,7 +171,7 @@ sub power_limititation
 {
     my($self) = @_;
     
-    my $value = shift $self->readAddress(JNX::SMAReader::POWER_LIMITATION);
+    my $value = shift @{$self->readAddress(JNX::SMAReader::POWER_LIMITATION)};
 
     print STDERR "powerlimititation: :".Data::Dumper->Dumper($value)."\n" if $self->{debug};
 
@@ -179,7 +183,7 @@ sub power_limititation
 sub current_generation
 {
     my($self) = @_;
-    my $value = shift $self->readAddress(JNX::SMAReader::CURRENT_GENERATION);
+    my $value = shift @{$self->readAddress(JNX::SMAReader::CURRENT_GENERATION)};
 
     print STDERR "current_generation: :".Data::Dumper->Dumper($value)."\n" if $self->{debug};
 
@@ -187,23 +191,66 @@ sub current_generation
 }
 
 
+sub current_stringa_power
+{
+    my($self) = @_;
+    my $value = shift @{$self->readAddress(JNX::SMAReader::CURRENT_STRINGA_POWER)};
+
+    print STDERR "current_stringa_power: :".Data::Dumper->Dumper($value)."\n" if $self->{debug};
+
+    if( $value < 0 || $value > 1000000000 ) { $value = 0 }
+    return $value;
+}
+
+sub current_stringb_power
+{
+    my($self) = @_;
+    my $value = shift @{$self->readAddress(JNX::SMAReader::CURRENT_STRINGB_POWER)};
+
+    print STDERR "current_stringb_power: :".Data::Dumper->Dumper($value)."\n" if $self->{debug};
+
+    if( $value < 0 || $value > 1000000000 ) { $value = 0 }
+    return $value;
+}
 
 sub current_gridvoltage
 {
     my($self) = @_;
-    my $value = shift $self->readAddress(JNX::SMAReader::GRID_CURRENT_PHASE_A);
+    my $value = shift @{$self->readAddress(JNX::SMAReader::GRID_CURRENT_PHASE_A)};
 
     print STDERR "current_gridvoltage: :".Data::Dumper->Dumper($value)."\n" if $self->{debug};
 
     return ($value > 20000) && ($value < 25000) ? $value/100 : 230;
 }
 
+sub dailyyield
+{
+    my($self) = @_;
+    my $value = shift @{$self->readAddress(JNX::SMAReader::DAILY_YIELD)};
 
+    print STDERR "daily yield: :".Data::Dumper->Dumper($value)."\n" if $self->{debug};
+
+    if( $value < 0 || $value > 1000000000 ) { $value = 0 }
+    $value = sprintf "%.1f",($value / 1000);
+    return $value;
+}
+
+sub temperature
+{
+    my($self) = @_;
+    my $value = shift @{$self->readAddress(JNX::SMAReader::TEMPERATURE)};
+
+    print STDERR "temperature: :".Data::Dumper->Dumper($value)."\n" if $self->{debug};
+
+    if( $value < -10000000 || $value > 1000000 ) { $value = 0 }
+    $value = sprintf "%.1f",($value / 10);
+    return $value;
+}
 
 sub current_feedin
 {
     my($self) = @_;
-    my $value = shift $self->readAddress(JNX::SMAReader::CURRENT_FEEDIN);
+    my $value = shift @{$self->readAddress(JNX::SMAReader::CURRENT_FEEDIN)};
 
     print STDERR "current_feedin: :".Data::Dumper->Dumper($value)."\n" if $self->{debug};
 
@@ -215,7 +262,7 @@ sub current_feedin
 sub current_gridusage
 {
     my($self) = @_;
-    my $value = shift $self->readAddress(JNX::SMAReader::CURRENT_GRID_USAGE);
+    my $value = shift @{$self->readAddress(JNX::SMAReader::CURRENT_GRID_USAGE)};
 
     print STDERR "current_gridusage: :".Data::Dumper->Dumper($value)."\n" if $self->{debug};
 
@@ -225,7 +272,7 @@ sub current_gridusage
 sub generation_counter
 {
     my($self) = @_;
-    my $value = shift $self->readAddress(JNX::SMAReader::TOTAL_YIELD_COUNTER);
+    my $value = shift @{$self->readAddress(JNX::SMAReader::TOTAL_YIELD_COUNTER)};
 
     print STDERR "generation_counter: :".Data::Dumper->Dumper($value)."\n" if $self->{debug};
 
@@ -236,7 +283,7 @@ sub generation_counter
 sub feedin_counter
 {
     my($self) = @_;
-    my $value = shift $self->readAddress(JNX::SMAReader::TOTAL_FEEDIN_COUNTER);
+    my $value = shift @{$self->readAddress(JNX::SMAReader::TOTAL_FEEDIN_COUNTER)};
 
     print STDERR "feedin_counter: :".Data::Dumper->Dumper($value)."\n" if $self->{debug};
 
@@ -246,7 +293,7 @@ sub feedin_counter
 sub grid_counter
 {
     my($self) = @_;
-    my $value = shift $self->readAddress(JNX::SMAReader::TOTAL_GRID_COUNTER);
+    my $value = shift @{$self->readAddress(JNX::SMAReader::TOTAL_GRID_COUNTER) };
 
     print STDERR "grid_counter: :".Data::Dumper->Dumper($value)."\n" if $self->{debug};
 

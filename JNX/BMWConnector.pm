@@ -48,13 +48,32 @@ sub new
     $self->{cachetime}      = $options{cachetime}       || $commandlineoption{'cachetime'};
     $self->{outdatedtime}   = $options{outdatedtime}    || $commandlineoption{'outdatedtime'};
 
+    JNX::JLog::trace("initalized:".Data::Dumper->Dumper($self));
+
     bless $self, $class;
     return $self;
 }
 
+
 sub isConnected             {   return @_[0]->getVariableFromURLData('connectorStatus')                 eq 'CONNECTED' ? 1 : 0;   }
 sub isCharging              {   return @_[0]->getVariableFromURLData('chargingLogicCurrentlyActive')    eq 'CHARGING'  ? 1 : 0;   }
 sub currentStateOfCharge    {   return @_[0]->getVariableFromURLData('chargingLevelHv') + 0.0;     }
+
+sub carName
+{
+    my($self) = @_;
+    JNX::JLog::trace;
+
+    my %carnames = ( 'jolly' => 'Admiral', 'jolly2' => 'Blauwal' );
+    my $carname = 'Unknown';
+    if(     $self->{url} =~ m/([\w\d]+)\.json$/
+        &&  exists( $carnames{$1} ) )
+    {
+        $carname = $carnames{$1}
+    }
+    JNX::JLog::debug("Carname:$carname");
+    return $carname;
+}
 
 sub hasReachedChargeLimitAtHome
 {
@@ -102,7 +121,7 @@ sub distanceFromLocationInKm
     my $c = 2 * atan2(sqrt($a), sqrt(1-$a));
     my $d = $R * $c;                    # Distance in km
 
-    JNX::JLog::trace 'distance: %3.2f km',$d;
+    JNX::JLog::trace('distance: %3.2f km',$d);
 
     return $d;
 }
@@ -125,7 +144,7 @@ sub isAtHome
     
     my $isathome = $distance < $self->{homeradiusmeter} ? 1 : 0;
      
-    JNX::JLog::debug "Distance from home: %6.4f isAtHome:%d",$distance,$isathome;
+    JNX::JLog::debug("Distance from home: %6.4f isAtHome:%d",$distance,$isathome);
     
     $self->{data}{isAtHome} = $isathome;
      return $isathome;

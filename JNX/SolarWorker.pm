@@ -27,6 +27,10 @@ use constant limitation => 'limitation';
 use constant feedin => 'feedin';
 use constant gridusage => 'gridusage';
 use constant voltage => 'voltage';
+use constant stringapower => 'stringa';
+use constant stringbpower => 'stringb';
+use constant dailyyield => 'dailyyield';
+use constant temperature => 'temperature';
 
 use constant feedin_counter => 'feedin_counter';
 use constant grid_counter => 'grid_counter';
@@ -44,6 +48,7 @@ use constant fully_charged => 'fully_charged';
 use constant soc => 'soc';
 use constant chargelimit => 'chargelimit';
 use constant pvchargelimit => 'pvchargelimit';
+use constant carname => 'carname';
 1;
 package JNX::SolarWorker::Derived;
 use constant chargepower => 'chargepower';
@@ -92,6 +97,7 @@ use constant settings => 'settings';
 use constant action => 'action';
 use constant pvReader => 'pvReader';
 use constant evCharger => 'evCharger';
+use constant carConnectors => 'carConnectors';
 use constant carConnector => 'carConnector';
 use constant decently_charged => 'decently_charged';
 use constant fully_charged => 'fully_charged';
@@ -123,6 +129,7 @@ use constant settingsfilename => 'settingsfilename';
 use constant pvReader       => 'pvReader';
 use constant evCharger      => 'evCharger';
 use constant carConnector   => 'carConnector';
+use constant carConnectors  => 'carConnectors';
 
 use constant chargetype     => 'chargetype';
 use constant chargelimit    => 'chargelimit';
@@ -164,7 +171,8 @@ sub new
 
     $self->{JNX::SolarWorker::SelfKey::pvReader}              = $options{JNX::SolarWorker::Options::pvReader}      || Carp::croak "Missing JNX::SolarWorker::Options::pvReader";
     $self->{JNX::SolarWorker::SelfKey::evCharger}             = $options{JNX::SolarWorker::Options::evCharger}     || Carp::croak "Missing JNX::SolarWorker::Options::evCharger";
-    $self->{JNX::SolarWorker::SelfKey::carConnector}          = $options{JNX::SolarWorker::Options::carConnector}  || Carp::croak "Missing JNX::SolarWorker::Options::carConnector";
+    $self->{JNX::SolarWorker::SelfKey::carConnectors}         = $options{JNX::SolarWorker::Options::carConnectors} || Carp::croak "Missing JNX::SolarWorker::Options::carConnectors";
+    $self->{JNX::SolarWorker::SelfKey::carConnector}          = @{$self->{JNX::SolarWorker::SelfKey::carConnectors}}[0];
 
     my %storedsettings;
     my $retrievedsettings = eval { retrieve( $self->{JNX::SolarWorker::SelfKey::settingsfilename} ) };
@@ -180,7 +188,10 @@ sub new
         };
     JNX::JLog::debug "Evaluated settings:".Data::Dumper->Dumper($self->{JNX::SolarWorker::SelfKey::settings} );
 
-    $self->{JNX::SolarWorker::SelfKey::carConnector}->{JNX::SolarWorker::Car::chargelimit} = $self->{JNX::SolarWorker::SelfKey::settings}{JNX::SolarWorker::Settings::chargelimit};
+    for my $carconnector ( @{$self->{JNX::SolarWorker::SelfKey::carConnectors}} )
+    {
+        $carconnector->{JNX::SolarWorker::Car::chargelimit} = $self->{JNX::SolarWorker::SelfKey::settings}{JNX::SolarWorker::Settings::chargelimit};
+    }
 
     $self->{JNX::SolarWorker::SelfKey::starttime}  = time();
     $self->{JNX::SolarWorker::SelfKey::action}     =  {
@@ -210,10 +221,13 @@ sub readSolarValues
                     JNX::SolarWorker::Solar::feedin               => $pvReader->current_feedin(),
                     JNX::SolarWorker::Solar::gridusage            => $pvReader->current_gridusage(),
                     JNX::SolarWorker::Solar::voltage              => $pvReader->current_gridvoltage(),
-
+                    JNX::SolarWorker::Solar::stringapower         => $pvReader->current_stringa_power(),
+                    JNX::SolarWorker::Solar::stringbpower         => $pvReader->current_stringb_power(),
                     JNX::SolarWorker::Solar::feedin_counter       => $pvReader->feedin_counter() * 3600,
                     JNX::SolarWorker::Solar::grid_counter         => $pvReader->grid_counter() * 3600,
                     JNX::SolarWorker::Solar::generation_counter   => $pvReader->generation_counter() * 3600,
+                    JNX::SolarWorker::Solar::dailyyield           => $pvReader->dailyyield(),
+                    JNX::SolarWorker::Solar::temperature          => $pvReader->temperature(),
                 };
     JNX::JLog::debug 'solar:'.Data::Dumper->Dumper($solar);
     return $solar;
@@ -242,23 +256,40 @@ sub readChargerValues
 sub readCarValues
 {
     my ($self,$chargerisconnected) = (@_);
-
-    my $carConnector = $self->{JNX::SolarWorker::SelfKey::carConnector};
     my $car;
+
+    TESTCARS: for my $testCar ( @{$self->{JNX::SolarWorker::SelfKey::carConnectors}} )
+    {
+        JNX::JLog::debug("testing car:".$testCar->carName());
+
+        if( $testCar->isAtHome() && $testCar->isConnected() )
+        {
+            JNX::JLog::debug("car is connected:".$testCar->carName());
+
+            $self->{JNX::SolarWorker::SelfKey::carConnector} = $testCar;
+
+            last TESTCARS;
+        }
+    }
+    my $carConnector = $self->{JNX::SolarWorker::SelfKey::carConnector};
+       $carConnector->{JNX::SolarWorker::Car::chargelimit} = $self->{JNX::SolarWorker::SelfKey::settings}{JNX::SolarWorker::Settings::chargelimit};
+
+
 
     if( !$chargerisconnected )
     {
         $self->{JNX::SolarWorker::SelfKey::decently_charged}   = 0;
         $self->{JNX::SolarWorker::SelfKey::fully_charged}      = 0;
-
+        $$car{JNX::SolarWorker::Car::carname}                  = 'Unknown';
         $$car{JNX::SolarWorker::Car::soc} =  0;
     }
     else
     {
         $self->{JNX::SolarWorker::SelfKey::decently_charged}  = $carConnector->hasReachedChargeLimitAtHome()      || $self->{JNX::SolarWorker::SelfKey::decently_charged};
         $self->{JNX::SolarWorker::SelfKey::fully_charged}     = $carConnector->hasReachedPVLimitAtHome()          || $self->{JNX::SolarWorker::SelfKey::fully_charged};
+        $$car{JNX::SolarWorker::Car::carname}                 = $carConnector->carName();
         $$car{JNX::SolarWorker::Car::soc}                     = $carConnector->currentStateOfCharge();
-    }
+   }
     $$car{JNX::SolarWorker::Car::decently_charged}    =  $self->{JNX::SolarWorker::SelfKey::decently_charged};
     $$car{JNX::SolarWorker::Car::fully_charged}       =  $self->{JNX::SolarWorker::SelfKey::fully_charged};
 
@@ -544,30 +575,33 @@ sub command
     JNX::JLog::debug if $self->{JNX::SolarWorker::SelfKey::debug};
 
     my $settingschanged = 0;
+    
+    if( ref($input) eq 'HASH' )
+    {
+        my $matchstring = JNX::SolarWorker::ChargeType::solar .'|'. JNX::SolarWorker::ChargeType::immediate;
 
-    my $matchstring = JNX::SolarWorker::ChargeType::solar .'|'. JNX::SolarWorker::ChargeType::immediate;
-
-    if( $$input{JNX::SolarWorker::WebSettings::chargetype} =~ m/^($matchstring)$/o )
-    {
-        $self->{JNX::SolarWorker::SelfKey::settings}{JNX::SolarWorker::Settings::chargetype} = $$input{JNX::SolarWorker::WebSettings::chargetype};
-        $settingschanged = 1;
-    }
-    if( $$input{JNX::SolarWorker::WebSettings::chargelimit} =~ m/^(\d+)$/o )
-    {
-        $self->{JNX::SolarWorker::SelfKey::settings}{JNX::SolarWorker::Car::chargelimit}        = $$input{JNX::SolarWorker::WebSettings::chargelimit};
-        $self->{JNX::SolarWorker::SelfKey::carConnector}->{JNX::SolarWorker::Car::chargelimit}  = $$input{JNX::SolarWorker::WebSettings::chargelimit};
-        $self->{JNX::SolarWorker::SelfKey::decently_charged} = 0;
-        $settingschanged = 1;
-    }
-    if( $$input{JNX::SolarWorker::WebSettings::chargespeed} =~ m/^(\d+)$/o )
-    {
-        $self->{JNX::SolarWorker::SelfKey::settings}{JNX::SolarWorker::Settings::chargespeed} = $$input{JNX::SolarWorker::WebSettings::chargespeed};
-        $settingschanged = 1;
-    }
-    if( $$input{JNX::SolarWorker::WebSettings::solarsafety} =~ m/^(\-1|\d+)$/o )
-    {
-        $self->{JNX::SolarWorker::SelfKey::settings}{JNX::SolarWorker::Settings::solarsafety} = $$input{JNX::SolarWorker::WebSettings::solarsafety};
-        $settingschanged = 1;
+        if( $$input{JNX::SolarWorker::WebSettings::chargetype} =~ m/^($matchstring)$/o )
+        {
+            $self->{JNX::SolarWorker::SelfKey::settings}{JNX::SolarWorker::Settings::chargetype} = $$input{JNX::SolarWorker::WebSettings::chargetype};
+            $settingschanged = 1;
+        }
+        if( $$input{JNX::SolarWorker::WebSettings::chargelimit} =~ m/^(\d+)$/o )
+        {
+            $self->{JNX::SolarWorker::SelfKey::settings}{JNX::SolarWorker::Car::chargelimit}        = $$input{JNX::SolarWorker::WebSettings::chargelimit};
+            $self->{JNX::SolarWorker::SelfKey::carConnector}->{JNX::SolarWorker::Car::chargelimit}  = $$input{JNX::SolarWorker::WebSettings::chargelimit};
+            $self->{JNX::SolarWorker::SelfKey::decently_charged} = 0;
+            $settingschanged = 1;
+        }
+        if( $$input{JNX::SolarWorker::WebSettings::chargespeed} =~ m/^(\d+)$/o )
+        {
+            $self->{JNX::SolarWorker::SelfKey::settings}{JNX::SolarWorker::Settings::chargespeed} = $$input{JNX::SolarWorker::WebSettings::chargespeed};
+            $settingschanged = 1;
+        }
+        if( $$input{JNX::SolarWorker::WebSettings::solarsafety} =~ m/^(\-1|\d+)$/o )
+        {
+            $self->{JNX::SolarWorker::SelfKey::settings}{JNX::SolarWorker::Settings::solarsafety} = $$input{JNX::SolarWorker::WebSettings::solarsafety};
+            $settingschanged = 1;
+        }
     }
 
     my %settings = %{$self->{JNX::SolarWorker::SelfKey::settings}};

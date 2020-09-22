@@ -16,7 +16,8 @@ use JNX::Configuration;
 
 my %commandlineoption = JNX::Configuration::newFromDefaults(
                                                                 'MaximumPacketSize' => [64 * 1024,'number'],
-                                                                'LoopTime'          => [5,'number'],
+                                                                'LoopTime'          => [15,'number'],
+                                                                'InnerLoopTime'     => [2,'number'],
                                                                 'LocalPort'         => [5145,'number'],
                                                                 'LocalAddr'         => ['0.0.0.0','string'],
                                                             );
@@ -33,6 +34,7 @@ sub new
     $self->{debug}                  = $options{debug}             ||  $commandlineoption{'debug'};
     $self->{MaximumPacketSize}      = $options{MaximumPacketSize} || $commandlineoption{'MaximumPacketSize'};
     $self->{LoopTime}               = $options{LoopTime}          || $commandlineoption{'LoopTime'};
+    $self->{InnerLoopTime}          = $options{InnerLoopTime}     || $commandlineoption{'InnerLoopTime'};
     $self->{LocalPort}              = $options{LocalPort}         || $commandlineoption{'LocalPort'};
     $self->{LocalAddr}              = $options{LocalAddr}         || $commandlineoption{'LocalAddr'};
     $self->{Worker}                 = $options{Worker}            || Carp::croak "Missing Worker";
@@ -52,12 +54,12 @@ sub setup
 
         $socket->setsockopt(SOL_SOCKET, SO_RCVBUF, $self->{MaximumPacketSize})  || die "setsockopt: $!";
 
-    my $innerlooptime = $self->{LoopTime} / 3;
+    my $innerlooptime = $self->{InnerLoopTime} ;
     my $seconds  = int($innerlooptime);
     my $useconds = int( 1_000_000 * ( $innerlooptime - $seconds ) );
     my $timeout  = pack( 'l!l!', $seconds, $useconds );
 
-        $socket->setsockopt(SOL_SOCKET, SO_RCVTIMEO, $timeout)      || die "setsockopt: $!";
+    $socket->setsockopt(SOL_SOCKET, SO_RCVTIMEO, $timeout)      || die "setsockopt: $!";
 
     JNX::JLog::trace "Receive buffer is ", $socket->getsockopt(SOL_SOCKET, SO_RCVBUF), " bytes";
     JNX::JLog::trace "IP TTL is ", $socket->getsockopt(IPPROTO_IP, IP_TTL);

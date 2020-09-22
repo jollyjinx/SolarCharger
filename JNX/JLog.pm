@@ -84,7 +84,7 @@ sub levellog
             }
         }
         print STDERR $timestring.':'.$level.'['.$$.']:'.$package.'::'.$subr.'.'.$line.':';
-        print STDERR @arguments;
+        printf STDERR @arguments;
         print STDERR "\n";
         return undef;
     }
