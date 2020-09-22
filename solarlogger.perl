@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 use strict;
-use FindBin; use lib "$FindBin::Bin/perl5/lib/perl5","$FindBin::Bin/JNX";
+use FindBin; use lib "$FindBin::Bin/perl5/lib/perl5","$FindBin::Bin/JNX","$FindBin::Bin";
 
 use JNX::Configuration;
 use JNX::SMAReader;
