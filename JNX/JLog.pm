@@ -34,29 +34,40 @@ use constant names  =>  {
              
 package JNX::JLog;
 
-my $loglevel = JNX::JLog::Level::warn;
+my $loglevel        = JNX::JLog::Level::warn;
+my $canbechanged    = 1;
 
 {
     select(STDERR);
     $| = 1;
 
-    JNX::JLog::setLevel(JNX::JLog::Level::fatal)  if grep( /^\-?\-fatal$/o ,@ARGV);
-    JNX::JLog::setLevel(JNX::JLog::Level::error)  if grep( /^\-?\-error$/o ,@ARGV);
-    JNX::JLog::setLevel(JNX::JLog::Level::warn)   if grep( /^\-?\-warn$/o ,@ARGV);
-    JNX::JLog::setLevel(JNX::JLog::Level::info)   if grep( /^\-?\-info$/o ,@ARGV);
-    JNX::JLog::setLevel(JNX::JLog::Level::debug)  if grep( /^\-?\-debug$/o ,@ARGV);
-    JNX::JLog::setLevel(JNX::JLog::Level::trace)  if grep( /^\-?\-trace$/o ,@ARGV);
-    JNX::JLog::setLevel(JNX::JLog::Level::all)    if grep( /^\-?\-all$/o ,@ARGV);
+    JNX::JLog::setLevel(JNX::JLog::Level::fatal,1)  if grep( /^\-?\-fatal$/o ,@ARGV);
+    JNX::JLog::setLevel(JNX::JLog::Level::error,1)  if grep( /^\-?\-error$/o ,@ARGV);
+    JNX::JLog::setLevel(JNX::JLog::Level::warn,1)   if grep( /^\-?\-warn$/o ,@ARGV);
+    JNX::JLog::setLevel(JNX::JLog::Level::info,1)   if grep( /^\-?\-info$/o ,@ARGV);
+    JNX::JLog::setLevel(JNX::JLog::Level::debug,1)  if grep( /^\-?\-debug$/o ,@ARGV);
+    JNX::JLog::setLevel(JNX::JLog::Level::trace,1)  if grep( /^\-?\-trace$/o ,@ARGV);
+    JNX::JLog::setLevel(JNX::JLog::Level::all,1)    if grep( /^\-?\-all$/o ,@ARGV);
 }
 
 
 sub setLevel
 {
-    my($level) = @_;
+    my($level,$commandlineoption) = @_;
 
-    $loglevel = $level;
-    my $levelnames = JNX::JLog::Level::names;
-    JNX::JLog::info( 'loglevel now:'.$loglevel.' ('.$$levelnames{$loglevel}.')'  );
+    if( $canbechanged )
+    {
+        my $levelnames = JNX::JLog::Level::names;
+        my %levelnames = %{$levelnames};
+        my %inversenames = reverse %levelnames;
+        $loglevel = exists( $inversenames{$level} ) ? $inversenames{$level} : $level;
+        JNX::JLog::warn( 'loglevel now:'.$loglevel.' ('.$$levelnames{$loglevel}.')'  );
+    }
+    if( $commandlineoption )
+    {
+        JNX::JLog::warn("loglevel has been set by commandline option and can't be changed");
+        $canbechanged = 0;
+    }
 }
 
 
@@ -84,7 +95,7 @@ sub levellog
             }
         }
         print STDERR $timestring.':'.$level.'['.$$.']:'.$package.'::'.$subr.'.'.$line.':';
-        printf STDERR @arguments;
+        print STDERR @arguments;
         print STDERR "\n";
         return undef;
     }

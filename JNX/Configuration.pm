@@ -29,7 +29,7 @@ sub newFromDefaults
     my  $current_module_name        = ($current_package_is_module ? $current_package_name : $programname);
 
 
-    my  $always_supported_options = {  'debug'            =>  [0,'number'],
+    my  $always_supported_options = {  'loglevel'         =>  ['warn','string'],
                                        'configfilename'   =>  ['config.ini','string'],
                                     };
     my  $main_supported_options   = {
@@ -165,6 +165,8 @@ sub newFromDefaults
         }
     
         die $helptext if $showhelp;
+        JNX::JLog::error $current_package_name.'log level:'. $$all_options_merged{'loglevel'};
+        JNX::JLog::setLevel( $$all_options_merged{'loglevel'} );
     }
 #         exit;
        #JNX::JLog::error $current_package_name.'$alloptions:'.Data::Dumper->Dumper($alloptions);

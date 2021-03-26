@@ -258,26 +258,38 @@ sub readCarValues
     my ($self,$chargerisconnected) = (@_);
     my $car;
 
-    TESTCARS: for my $testCar ( @{$self->{JNX::SolarWorker::SelfKey::carConnectors}} )
+    JNX::JLog::debug("testing which car is connected, charger is connected:$chargerisconnected");
+
+    my $carConnector = $self->{JNX::SolarWorker::SelfKey::carConnector};
+    
+    if( !$chargerisconnected )
+    { 
+        $carConnector = undef;
+    }
+    else
     {
-        JNX::JLog::debug("testing car:".$testCar->carName());
-
-        if( $testCar->isAtHome() && $testCar->isConnected() )
+        TESTCARS: for my $testCar ( @{$self->{JNX::SolarWorker::SelfKey::carConnectors}} )
         {
-            JNX::JLog::debug("car is connected:".$testCar->carName());
+            JNX::JLog::debug("testing car:".$testCar->carName().'athome:'.$testCar->isAtHome().'connected:'.$testCar->isConnected());
 
-            $self->{JNX::SolarWorker::SelfKey::carConnector} = $testCar;
+            if( $testCar->isAtHome() && $testCar->isConnected() )
+            {
+                JNX::JLog::debug("car is connected:".$testCar->carName());
 
-            last TESTCARS;
+                $self->{JNX::SolarWorker::SelfKey::carConnector} = $testCar;
+
+                $carConnector = $self->{JNX::SolarWorker::SelfKey::carConnector};
+                $carConnector->{JNX::SolarWorker::Car::chargelimit} = $self->{JNX::SolarWorker::SelfKey::settings}{JNX::SolarWorker::Settings::chargelimit};
+
+                last TESTCARS;
+            }
         }
     }
-    my $carConnector = $self->{JNX::SolarWorker::SelfKey::carConnector};
-       $carConnector->{JNX::SolarWorker::Car::chargelimit} = $self->{JNX::SolarWorker::SelfKey::settings}{JNX::SolarWorker::Settings::chargelimit};
 
-
-
-    if( !$chargerisconnected )
+    if( !$carConnector || !$chargerisconnected )
     {
+    	JNX::JLog::debug("no car is connected");
+
         $self->{JNX::SolarWorker::SelfKey::decently_charged}   = 0;
         $self->{JNX::SolarWorker::SelfKey::fully_charged}      = 0;
         $$car{JNX::SolarWorker::Car::carname}                  = 'Unknown';
@@ -293,7 +305,7 @@ sub readCarValues
     $$car{JNX::SolarWorker::Car::decently_charged}    =  $self->{JNX::SolarWorker::SelfKey::decently_charged};
     $$car{JNX::SolarWorker::Car::fully_charged}       =  $self->{JNX::SolarWorker::SelfKey::fully_charged};
 
-    $$car{JNX::SolarWorker::Car::chargelimit}         =  $carConnector->{chargelimit};
+    $$car{JNX::SolarWorker::Car::chargelimit}         =  $carConnector->{chargelimit} || $self->{JNX::SolarWorker::SelfKey::settings}{JNX::SolarWorker::Settings::chargelimit};
     $$car{JNX::SolarWorker::Car::pvchargelimit}       =  $carConnector->{pvchargelimit};
 
     JNX::JLog::debug 'car:'.Data::Dumper->Dumper($car);
