@@ -475,16 +475,17 @@ sub generateAction
                 }
                 elsif( $self->{JNX::SolarWorker::SelfKey::decently_charged} )
                 {
-                    my $startcharging = $self->{JNX::SolarWorker::Options::feedinlimit} - $$solarvalues{JNX::SolarWorker::Solar::voltage};
-                    my $housespare    = $$derivedvalues{JNX::SolarWorker::Derived::housespare};
+                    my $feedin        = $$solarvalues{JNX::SolarWorker::Solar::feedin};
+                    my $feedinlimit   = $self->{JNX::SolarWorker::Options::feedinlimit} - 50;
 
-                    JNX::JLog::trace "decently charged: currentspare: $housespare startcharging: $startcharging feedinlimit:$self->{JNX::SolarWorker::Options::feedinlimit}";
+                    JNX::JLog::trace "decently charged: feedin: $feedin > feedinlimit-50: $feedinlimit";
 
-                    if( $housespare > $startcharging )
+                    if( $feedin > $feedinlimit )
                     {
-                        my $spareamperage   = int( ($housespare - $startcharging ) / $$solarvalues{JNX::SolarWorker::Solar::voltage} );
+                        my $housespare    = $$derivedvalues{JNX::SolarWorker::Derived::housespare};
+                        my $spareamperage = int( ($housespare - $feedinlimit ) / $$solarvalues{JNX::SolarWorker::Solar::voltage} ) + 1;
                         $charger_amperage = clamp($spareamperage,$minimumchargecurrent,$maximumchargecurrent);
-                        JNX::JLog::trace "decently charged: $spareamperage charger_amperage: $charger_amperage minimumchargecurrent:$minimumchargecurrent maximumchargecurrent:$maximumchargecurrent";
+                        JNX::JLog::trace "decently charged: spareamperage:$spareamperage  charger_amperage:$charger_amperage minimumchargecurrent:$minimumchargecurrent maximumchargecurrent:$maximumchargecurrent";
                     }
                     else
                     {
