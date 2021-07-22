@@ -90,6 +90,8 @@ use constant historysize => 'historysize';
 use constant minimumchargecurrent => 'minimumchargecurrent';
 use constant maximumchargecurrent => 'maximumchargecurrent';
 use constant settingsfilename => 'settingsfilename';
+use constant chargechangewaittime => 'chargechangewaittime';
+use constant currentchangewaittime => 'currentchangewaittime';
 
 
 use constant starttime => 'starttime';
@@ -125,6 +127,8 @@ use constant minimumchargecurrent => 'minimumchargecurrent';
 use constant maximumchargecurrent => 'maximumchargecurrent';
 use constant feedinlimit => 'feedinlimit';
 use constant settingsfilename => 'settingsfilename';
+use constant chargechangewaittime => 'chargechangewaittime';
+use constant currentchangewaittime => 'currentchangewaittime';
 
 use constant pvReader       => 'pvReader';
 use constant evCharger      => 'evCharger';
@@ -151,6 +155,8 @@ my %commandlineoption = JNX::Configuration::newFromDefaults(
                                                                 JNX::SolarWorker::Options::feedinlimit          => [6300*0.65 ,'number'],
                                                                 JNX::SolarWorker::Options::historysize          => [10,'number'],
                                                                 JNX::SolarWorker::Options::settingsfilename     => ['.solarworker.settings','string'],
+                                                                JNX::SolarWorker::Options::chargechangewaittime     => [600,'number'],
+                                                                JNX::SolarWorker::Options::currentchangewaittime    => [240,'number'],
                                                             );
 
 sub new
@@ -168,6 +174,8 @@ sub new
     $self->{JNX::SolarWorker::SelfKey::feedinlimit}           = $options{JNX::SolarWorker::Options::feedinlimit}           || $commandlineoption{JNX::SolarWorker::Options::feedinlimit};
     $self->{JNX::SolarWorker::SelfKey::historysize}           = $options{JNX::SolarWorker::Options::historysize}           || $commandlineoption{JNX::SolarWorker::Options::historysize};
     $self->{JNX::SolarWorker::SelfKey::settingsfilename}      = $options{JNX::SolarWorker::Options::settingsfilename}      || $commandlineoption{JNX::SolarWorker::Options::settingsfilename};
+    $self->{JNX::SolarWorker::SelfKey::chargechangewaittime}    = $options{JNX::SolarWorker::Options::chargechangewaittime}     || $commandlineoption{JNX::SolarWorker::Options::chargechangewaittime};
+    $self->{JNX::SolarWorker::SelfKey::currentchangewaittime}   = $options{JNX::SolarWorker::Options::currentchangewaittime}    || $commandlineoption{JNX::SolarWorker::Options::currentchangewaittime};
 
     $self->{JNX::SolarWorker::SelfKey::pvReader}              = $options{JNX::SolarWorker::Options::pvReader}      || Carp::croak "Missing JNX::SolarWorker::Options::pvReader";
     $self->{JNX::SolarWorker::SelfKey::evCharger}             = $options{JNX::SolarWorker::Options::evCharger}     || Carp::croak "Missing JNX::SolarWorker::Options::evCharger";
@@ -525,8 +533,8 @@ sub generateAction
             $evCharger->set_charge_current($charger_amperage);
         }
 
-
-        my $timetowait = ($self->{JNX::SolarWorker::SelfKey::action}{JNX::SolarWorker::Action::shouldcharge} != $charger_shouldcharge) ? 300 : 120;
+        my $timetowait = ($self->{JNX::SolarWorker::SelfKey::action}{JNX::SolarWorker::Action::shouldcharge} != $charger_shouldcharge) ? $self->{JNX::SolarWorker::Options::chargechangewaittime}  : $self->{JNX::SolarWorker::Options::currentchangewaittime};
+        JNX::JLog::trace 'timetowait:'.$timetowait;
 
         my $action =    {
                             JNX::SolarWorker::Action::shouldcharge        =>  $charger_shouldcharge,
