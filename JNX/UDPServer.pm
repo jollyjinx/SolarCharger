@@ -7,12 +7,13 @@ use JNX::JLog;
 package JNX::UDPServer;
 
 use POSIX;
-use Time::HiRes qw(usleep);
-use Data::Dumper;
 use IO::Socket::INET;
 use Socket qw(SOL_SOCKET SO_RCVBUF IPPROTO_IP IP_TTL);
-use JSON::PP;
+use Time::HiRes qw(usleep);
+use Data::Dumper;
+
 use JNX::Configuration;
+use JNX::JSONHelper;
 
 my %commandlineoption = JNX::Configuration::newFromDefaults(
                                                                 'MaximumPacketSize' => [64 * 1024,'number'],
@@ -31,7 +32,7 @@ sub new
     my $self = {};
     bless $self, $class;
 
-    $self->{debug}                  = $options{debug}             ||  $commandlineoption{'debug'};
+    $self->{debug}                  = $options{debug}             || $commandlineoption{'debug'};
     $self->{MaximumPacketSize}      = $options{MaximumPacketSize} || $commandlineoption{'MaximumPacketSize'};
     $self->{LoopTime}               = $options{LoopTime}          || $commandlineoption{'LoopTime'};
     $self->{InnerLoopTime}          = $options{InnerLoopTime}     || $commandlineoption{'InnerLoopTime'};
@@ -106,9 +107,9 @@ sub receivedCommand
 
     JNX::JLog::trace;
 
-    my $command         = eval { JSON::PP->new->utf8(1)->decode( $message ) };
+    my $command         = JNX::JSONHelper::hashFromJSONString( $message );
     my $returncommand   = $self->{Worker}->command($command);
-    my $returnjson      = JSON::PP->new->utf8(1)->encode( $returncommand );
+    my $returnjson      = JNX::JSONHelper::hashToJSON( $returncommand , 0);
 
     JNX::JLog::trace "returning: $returnjson";
     $socket->send($returnjson);

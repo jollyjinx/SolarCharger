@@ -13,14 +13,14 @@ sub checkHashForKeys
 
     my %required    = map { $_ => 1 } @required_keys;
     my @missing     = ();
-    
+
     for my $key (@required_keys)
     {
         push(@missing,$key) if ! exists( $$hash{$key} );
     }
-    
+
     JNX::JLog::error ": keys missing:".join(',',@missing)."from dictionary:".Data::Dumper->Dumper($hash) if @missing > 0;
-    
+
     return @missing == 0;
 }
 
@@ -28,15 +28,15 @@ sub checkHashForKeys
 sub mergeHashes
 {
     my(@hashes) = @_;
-    
+
     my %returnhash;
-    
+
     for my $hash (@hashes)
     {
         next if !$hash;
-    
-        JNX::JLog::error "hash:".Data::Dumper->Dumper($hash) if 'HASH' ne ref($hash);
-    
+
+        JNX::JLog::debug "hash:".Data::Dumper->Dumper($hash) if 'HASH' ne ref($hash);
+
         while( my ($key,$value) = each %{$hash} )
         {
             $returnhash{$key} = $value;
@@ -48,16 +48,39 @@ sub mergeHashes
 sub valueForKeyPath
 {
     my($keypath,$object) = @_;
-    
+
+    if( !defined $object )
+    {
+        JNX::JLog::trace 'keypath:'.$keypath.' for undefined object is undef';
+        return undef;
+    }
+
     my @keypath = split(/\./,$keypath);
-    
-    return $object if 0 == @keypath;
-    
+#    JNX::JLog::trace 'keypath:'.$keypath.' divided:'.join('-',@keypath).' object:'.Data::Dumper->Dumper($object);
+
+    if( 0 == @keypath)
+    {
+        my $reftype = ref($object);
+        JNX::JLog::trace 'leaf:'.$keypath.' reftype:'.$reftype.' value:'.Data::Dumper->Dumper($object);
+
+        if( 'JSON::PP::Boolean' eq $reftype )
+        {
+            my $value = $object ? 1 : 0;
+            JNX::JLog::trace 'JSON::PP::Boolean value:'.$value;
+            return $value;
+        }
+        JNX::JLog::trace 'leaf:'.$object;
+
+        return $object;
+    }
+
     my $first_key = shift @keypath;
-    
     my $new_keypath = join('.',@keypath);
+
     my $reftype = ref($object);
-#    JNX::JLog::error 'first_key:'.$first_key.'$reftype:'.$reftype.'$new_keypath:'.$new_keypath;
+    JNX::JLog::trace 'first_key:'.$first_key.' $reftype:'.$reftype.' $new_keypath:'.$new_keypath;
+    #JNX::JLog::trace "object: ".Data::Dumper->Dumper($object);
+
 
     if('HASH' eq $reftype)
     {
@@ -81,22 +104,22 @@ sub allKeyPaths
 
     my  $reftype        = ref($object);
         $currentkeypath .= '';
-    
-#    JNX::JLog::error ''.Data::Dumper->Dumper([$object,$currentkeypath,$reftype]);
-    
+
+   JNX::JLog::trace ''.Data::Dumper->Dumper([$object,$currentkeypath,$reftype]);
+
     return [] if '' eq $reftype;
     return [] if 'SCALAR' eq $reftype;
 
     if('HASH' eq $reftype)
     {
         my @keypaths;# = ($currentkeypath);
-    
+
         for my $key (sort keys %{$object})
         {
             my @subkeypaths = sort @{allKeyPaths($$object{$key},$key)};
-            
-#            JNX::JLog::error ''.Data::Dumper->Dumper(@subkeypaths);
-        
+
+            JNX::JLog::trace ''.Data::Dumper->Dumper(@subkeypaths);
+
             if( 0 == @subkeypaths )
             {
                 push(@keypaths,$key);
@@ -105,7 +128,7 @@ sub allKeyPaths
             {
                 for my $subkeypath (@subkeypaths)
                 {
-#                    JNX::JLog::error 'current:'.$subkeypath.'  key:'.$key.'  keypath:'.$subkeypath;
+                    JNX::JLog::trace 'current:'.$subkeypath.'  key:'.$key.'  keypath:'.$subkeypath;
                     push(@keypaths,$key.'.'.$subkeypath);
                 }
             }
@@ -115,13 +138,13 @@ sub allKeyPaths
     elsif('ARRAY' eq $reftype)
     {
         my @keypaths;
-    
+
         for my $key (0..$#$object)
         {
             my @subkeypaths = sort @{allKeyPaths($$object[$key],$key)};
-        
-#            JNX::JLog::error ''.Data::Dumper->Dumper(@subkeypaths);
-        
+
+            JNX::JLog::trace ''.Data::Dumper->Dumper(@subkeypaths);
+
             if( 0 == @subkeypaths )
             {
                 push(@keypaths,$key);
@@ -130,7 +153,7 @@ sub allKeyPaths
             {
                 for my $subkeypath (@subkeypaths)
                 {
-#                    JNX::JLog::error 'current:'.$subkeypath.'  key:'.$key.'  keypath:'.$subkeypath;
+                    JNX::JLog::trace 'current:'.$subkeypath.'  key:'.$key.'  keypath:'.$subkeypath;
                     push(@keypaths,$key.'.'.$subkeypath);
                 }
             }
@@ -143,35 +166,35 @@ sub allKeyPaths
 sub equals
 {
     my($a,$b) = @_;
-    
-#    JNX::JLog::error ''.Data::Dumper->Dumper([$a,$b]);
-    
+
+    JNX::JLog::trace ''.Data::Dumper->Dumper([$a,$b]);
+
     my $CMP_DIFFER  = 0;
     my $CMP_SAME    = 1;
-    
+
     my $defined_a = defined $a;
     my $defined_b = defined $b;
-    
+
     return $CMP_SAME    if !$defined_a && !$defined_b;
     return $CMP_DIFFER  if  $defined_a !=  $defined_b;
 
     my $ref_a = ref($a);
     my $ref_b = ref($b);
-    
+
     return $CMP_DIFFER if $ref_a ne $ref_b;
-    
-    
+
+
     if( 'HASH' eq $ref_a )
     {
         my $keys_a = [sort keys %{$a}];
         my $keys_b = [sort keys %{$b}];
-    
+
         return $CMP_DIFFER if !equals($keys_a,$keys_b);
-    
+
         while( my($key,$value_a) = each %{$a} )
         {
             my $value_b = $${b}{$key};
-        
+
             return $CMP_DIFFER if !equals($value_a,$value_b);
         }
         return $CMP_SAME;
@@ -182,7 +205,7 @@ sub equals
         my $last_b = $#$b;
 
         return $CMP_DIFFER if $last_a != $last_b;
-   
+
         for my $index (0..$last_a)
         {
             my $value_a = $$a[$index];
@@ -203,18 +226,18 @@ sub equals
 sub diffHashes
 {
     my($a,$b ) = @_;
-    
+
     my $keypaths_a = allKeyPaths($a);
     my $keypaths_b = allKeyPaths($b);
-#    JNX::JLog::debug "AAA".Data::Dumper->Dumper( $keypaths_a);
-#    JNX::JLog::debug "BBB".Data::Dumper->Dumper( $keypaths_b);
+    JNX::JLog::trace "AAA".Data::Dumper->Dumper( $keypaths_a);
+    JNX::JLog::trace "BBB".Data::Dumper->Dumper( $keypaths_b);
 
     my %all_keypaths;
-    
+
     for (@{$keypaths_a}) { $all_keypaths{$_} = undef; }
     for (@{$keypaths_b}) { $all_keypaths{$_} = undef; }
 
-    #JNX::JLog::debug "".Data::Dumper->Dumper( \%all_keypaths);
+    JNX::JLog::trace "".Data::Dumper->Dumper( \%all_keypaths);
 
     my @differences;
     for my $path (sort keys %all_keypaths)
@@ -223,7 +246,7 @@ sub diffHashes
         my $value_b = valueForKeyPath($path,$b);
         push(@differences,$path) if !(defined $value_a && defined $value_b && $value_a eq $value_b);
     }
-#    JNX::JLog::debug "RESULT".Data::Dumper->Dumper( \@differences);
+    JNX::JLog::trace "RESULT".Data::Dumper->Dumper( \@differences);
     return \@differences;
 }
 
@@ -249,13 +272,13 @@ sub self_test
     test_allkeypaths();
     test_keypath();
     test_diffHashes();
-    
+
     done_testing() ;
 }
 
 sub test_diffHashes
 {
-    JNX::JLog::debug "testing test_allkeypaths()";
+    JNX::JLog::trace "testing test_allkeypaths()";
 
     ok( equals(diffHashes( { 'a' => 'b' }                           ,{ 'a' => { 'b' => { 'c' => 'd' }  } }               ), ['a', 'a.b.c'] ));
     ok( equals(diffHashes( { 'a' => { 'b' => { 'c' => 'd' }  } }    ,{ 'a' => { 'b' => { 'c' => 'd' }  } }               ), [] ));
@@ -263,7 +286,7 @@ sub test_diffHashes
     ok( equals(diffHashes( { 'a' => { 'b' => { 'c' => [0,1,2] } } } ,{ 'a' => { 'b' => { 'c' => [0,1,2] } } }            ), [] ));
     ok( equals(diffHashes( { 'a' => { 'b' => { 'c' => [0,1,2] } } } ,{ 'a' => { 'b' => { 'c' => [2,1,2] } } }            ), ['a.b.c.0'] ));
     ok( equals(diffHashes( { 'a' => { 'b' => { 'c' => [5,{ 'd' => { 'e' => { 'f' => 'g' }  } },7] }  } }  ,{ 'a' => { 'b' => { 'c' => [5,{ 'd' => { 'e' => { 'f' => 'h' }  } },7] }  } }    ), ['a.b.c.1.d.e.f'] ));
-    
+
     ok( equals(diffHashes(  { 'a' => { 'b' => { 'c' => [5,{ 'd' => { 'e' => { 'f' => 'g' }  } },7] }  } }  ,
                             { 'a' => { 'b' => { 'd' => [5,{ 'd' => { 'e' => { 'f' => 'h' }  } },7] }  } }
                         ),
@@ -280,7 +303,7 @@ sub test_diffHashes
 
 sub test_allkeypaths
 {
-    JNX::JLog::debug "testing test_allkeypaths()";
+    JNX::JLog::trace "testing test_allkeypaths()";
 
     ok( equals(allKeyPaths( { 'a' => 'b' }                                                                                ), ['a'] ));
     ok( equals(allKeyPaths( { 'a' => { 'b' => { 'c' => 'd' }  } }                                                         ), [ 'a.b.c'] ));
@@ -289,8 +312,8 @@ sub test_allkeypaths
 
 sub test_keypath
 {
-    JNX::JLog::debug "testing keypath()";
-    
+    JNX::JLog::trace "testing keypath()";
+
     is( valueForKeyPath( 'a'         , { 'a' => 'b' }                                        ), 'b' );
     is( valueForKeyPath( 'b'         , { 'a' => 'b' }                                        ), undef );
 
@@ -302,8 +325,8 @@ sub test_keypath
 
 sub test_equals
 {
-    JNX::JLog::debug "testing equals()";
-    
+    JNX::JLog::trace "testing equals()";
+
     ok( equals( undef  , undef        ));
     ok( equals( {}  , {}        ));
     ok( !equals( 1  , undef        ));
@@ -317,7 +340,7 @@ sub test_equals
     ok( !equals( 'a', 'b'      ));
 
     ok( !equals( \{}, 'b'      ));
-    
+
     ok(  equals( ['a'] , ['a']   ));
     ok( !equals( []    , ['a']   ));
     ok( !equals( ['b'] , ['a']   ));

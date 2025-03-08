@@ -9,12 +9,11 @@ use JNX::UDPServer;
 use JNX::HTTPToUDPServer;
 use JNX::SolarWorker;
 use JNX::Configuration;
+use JNX::CarConnector;
 
 my %commandlineoption = JNX::Configuration::newFromDefaults(
                                                                 'localaddress'  => [ '0.0.0.0','string'],
                                                                 'localport'     => [5145,'number'],
-                                                                'cars'          => ['','string'],
-                                                                'basecarurl'    => ['','string'],
                                                             );
 {
     my $localaddress        = $commandlineoption{'localaddress'};
@@ -98,22 +97,13 @@ sub runUDPServer
 
     my @carConnectors;
 
-    for my $carname (split(/,/,$commandlineoption{'cars'}))
-    {
-        my $carurl = $commandlineoption{'basecarurl'}.$carname.'.json';
-
-        JNX::JLog::debug("creating carconnector: $carurl");
-        my $carConnector    = JNX::BMWConnector->new( url => $carurl )      || die "Could not create BMWConnector $carname";
-        JNX::JLog::debug("Created carConnector: ".$carConnector->{url});
-        push(@carConnectors,$carConnector);
-    }
-
     my $evCharger       = JNX::PhoenixCharger->new()    || die "Could not create PhoenixCharger";
     my $pvReader        = JNX::SMAReader->new()         || die "Could not create SMAReader";
+    my $carConnector    = JNX::CarConnector->new()      || die "Could not create CarConnector";
 
     my $solarworker = JNX::SolarWorker->new(    JNX::SolarWorker::Options::pvReader      => $pvReader,
                                                 JNX::SolarWorker::Options::evCharger     => $evCharger,
-                                                JNX::SolarWorker::Options::carConnectors => \@carConnectors,
+                                                JNX::SolarWorker::Options::carConnector  => $carConnector,
                                             )                                                                           || die "Could not create JNX::SolarWorker";
     my $udpserver   = JNX::UDPServer->new( LocalAddr => $localaddress ,LocalPort => $serverport ,Worker => $solarworker);
     $udpserver->run();

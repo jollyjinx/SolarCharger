@@ -10,12 +10,12 @@ use Time::HiRes qw(usleep);
 use Data::Dumper;
 use IO::Socket::INET;
 use Socket qw(SOL_SOCKET SO_RCVBUF IPPROTO_IP IP_TTL);
-use JSON::PP;
-use Encode /encode/;
+
+#use Encode /encode/;
 
 use JNX::JLog;
 use JNX::Configuration;
-
+use JNX::JSONHelper;
 
 my %commandlineoption = JNX::Configuration::newFromDefaults(
                                                                 'MaximumPacketSize' => [64 * 1024,'number'],
@@ -26,7 +26,6 @@ my %commandlineoption = JNX::Configuration::newFromDefaults(
                                                                 'ServerName'        => ['Jollys Simple Solar Charger','string'],
                                                                 'FileToServe'       => ['solarcharger.html','string'],
                                                             );
-
 sub new
 {
     my ($class,%options) = (@_);
@@ -60,6 +59,7 @@ sub run
 
     my $debug=0;
     my  $tcpserversocket = IO::Socket::INET->new( LocalAddr => $self->{LocalAddr}, LocalPort => $self->{LocalPort}, Listen => 5, Reuse => 1)  || die "Cannot create socket: $@";
+#        $tcpserversocket->setsockopt(SOL_SOCKET, SO_SNDBUF, $self->{MaximumPacketSize} )  || die "setsockopt: $!";
 
     $SIG{CHLD} = sub {
         # don't change $! and $? outside handler
@@ -174,7 +174,9 @@ sub readhttpcommand
             JNX::JLog::error "contentlength should be $contentlength != $readlength";
             return undef;
         }
+        JNX::JLog::trace "read: ".Data::Dumper->Dumper(\$body);
 
+        $body = undef if $body eq 'undefined';
         $request{body} = $body;
     }
     else
@@ -192,41 +194,42 @@ sub workoncommand
 {
     my($self,$client,$request) = @_;
 
+    my $code = '200 OK';
+    my $content = undef;
+    my $type = 'text/html';
+
     if( $$request{command} eq 'GET' && $$request{path} eq '/' )
     {
-        my $content = `cat "$self->{FileToServe}"`;
-        print $client "HTTP/1.1 200 OK\n";
-        print $client "Server: $self->{ServerName} 1.0\n";
-        print $client "Content-Type: text/html\n";
-        print $client "Connection: keep-alive\n";
-        print $client "Content-Length: ".length($content)."\n";
-        print $client "\r\n";
-        print $client $content;
+        $content = `cat "$self->{FileToServe}"`;
+    }
+    elsif( $$request{command} eq 'GET') #  && $$request{path} eq '/solarcharger.json' )
+    {
+        $type = 'application/json';
+        $content = $self->sendAndReceiveJSONviaUDP( $$request{body} );
     }
     elsif( $$request{command} eq 'POST' )
     {
-        my $content = $self->sendAndReceiveJSONviaUDP( $$request{body} );
-        use bytes;
-        JNX::JLog::trace "Sending back: $content";
-        
-        print $client "HTTP/1.1 200 OK\n";
-        print $client "Server: $self->{ServerName} 1.0\n";
-        print $client "Content-Type: application/json\n";
-        print $client "Connection: keep-alive\n";
-        print $client "Content-Length: ".length($content)."\n";
-        print $client "\r\n";
-        print $client $content;
+        $type = 'application/json';
+        $content = $self->sendAndReceiveJSONviaUDP( $$request{body} );
     }
     else
     {
-        print $client "HTTP/1.1 404 Not Found\n";
-        print $client "Server: $self->{ServerName} 1.0\n";
-        print $client "Content-Type: text/html\n";
-        print $client "Connection: close\n";
-        print $client "\r\n";
-        print $client "<html><head></head><body><h1>Error</h2></body></html>";
-        print $client "\r\n";
+        $code = '404 Not Found';
+        $content = '<html><head></head><body><h1>Error</h2></body></html>';
     }
+
+    my $return = "HTTP/1.1 $code\r\n";
+    $return .= "Server: $self->{ServerName} 1.0\r\n";
+    $return .= "Content-Type: $type\r\n";
+    $return .= "Content-Length: ".(length($content))."\r\n";
+#    $return .= "Connection: close\r\n";
+    $return .= "Connection: keep-alive\r\n";
+    $return .= "\r\n";
+    $return .= $content;
+    JNX::JLog::trace "Sending back:\n$return";
+
+    $client->send($return);
+#    $client->shutdown();
     return 1;
 }
 
@@ -247,14 +250,16 @@ sub sendAndReceiveJSONviaUDP
     my $useconds = int( 1_000_000 * ( $innerlooptime - $seconds ) );
     my $timeout  = pack( 'l!l!', $seconds, $useconds );
 
-        $socket->setsockopt(SOL_SOCKET, SO_RCVTIMEO, $timeout)      || die "setsockopt: $!";
+    $socket->setsockopt(SOL_SOCKET, SO_RCVTIMEO, $timeout)      || die "setsockopt: $!";
+    $socket->autoflush();
 
     JNX::JLog::trace "Receive buffer is ", $socket->getsockopt(SOL_SOCKET, SO_RCVBUF), " bytes";
     JNX::JLog::trace "IP TTL is ", $socket->getsockopt(IPPROTO_IP, IP_TTL);
 
     JNX::JLog::trace "JSON: $jsonstring";
 
-    $socket->send($jsonstring) or die "send: $!";
+    my $sent = $socket->send($jsonstring);
+    JNX::JLog::trace "sent: $sent";
 
     my $returnstring = undef;
 

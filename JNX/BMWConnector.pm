@@ -5,7 +5,6 @@ use Carp;
 
 package JNX::BMWConnector;
 use Math::Trig qw(deg2rad pi);
-use JSON::PP;
 
 use JNX::JLog;
 use JNX::Configuration;
@@ -56,21 +55,21 @@ sub new
 }
 
 
-sub isConnected             {   return @_[0]->getVariableFromKeyPath('dynamic.attributesMap.connectorStatus')    eq 'CONNECTED' ? 1 : 0;   }
-sub isCharging              {   return @_[0]->getVariableFromKeyPath('dynamic.attributesMap.charging_status')    eq 'CHARGING'  ? 1 : 0;   }
-sub currentStateOfCharge    {   return @_[0]->getVariableFromKeyPath('dynamic.attributesMap.chargingLevelHv') + 0.0;     }
+sub isConnected             {   return @_[0]->getVariableFromURLData('connectorStatus')                 eq 'CONNECTED' ? 1 : 0;   }
+sub isCharging              {   return @_[0]->getVariableFromURLData('chargingLogicCurrentlyActive')    eq 'CHARGING'  ? 1 : 0;   }
+sub currentStateOfCharge    {   return @_[0]->getVariableFromURLData('chargingLevelHv') + 0.0;     }
 
 sub carName
 {
     my($self) = @_;
     JNX::JLog::trace;
 
-    my %carnames = ( 'jolly' => 'Admiral', 'jolly2' => 'Blauwal' );
+    my %aliasnames = ( 'jolly' => 'Admiral', 'jolly2' => 'Blauwal' );
     my $carname = 'Unknown';
     if(     $self->{url} =~ m/([\w\d]+)\.json$/
-        &&  exists( $carnames{$1} ) )
+        &&  exists( $aliasnames{$1} ) )
     {
-        $carname = $carnames{$1}
+        $carname = $aliasnames{$1}
     }
     JNX::JLog::debug("Carname:$carname");
     return $carname;
@@ -136,8 +135,8 @@ sub isAtHome
 
     return $self->{data}{isAtHome} if $self->{data}{isAtHome};
 
-    my $latitude     = $self->getVariableFromKeyPath('dynamic.attributesMap.gps_lat') + 0;
-    my $longitude    = $self->getVariableFromKeyPath('dynamic.attributesMap.gps_lng') + 0;
+    my $latitude     = $self->getVariableFromURLData('gps_lat') + 0;
+    my $longitude    = $self->getVariableFromURLData('gps_lng') + 0;
 
     printf STDERR "%s Location: %6.4f %6.4f\n",''.localtime(),$latitude,$latitude if $self->{debug};
 
@@ -152,26 +151,6 @@ sub isAtHome
 }
 
 
-sub getVariableFromKeyPath
-{
-    my($self,$keypath) = @_;
-    JNX::JLog::trace 'keypath'.$keypath;
-
-    $self->updateDataIfNeeded();
-    return $self->{data}{$keypath} if $self->{data}{$keypath};
-    
-    my $path = '{'.$keypath.'}';
-    $path =~ s/\./}{/g;
-    my $value = undef;
-    my $evaluating = '$value = $self->{jsonhash}'.$path;
-    JNX::JLog::trace 'evaluating:'.$evaluating;
-    eval "$evaluating";
-
-    JNX::JLog::trace 'value:'.$value;
-    $self->{data}{$keypath} = $value;
-    return $value; 
-}
-
 sub getVariableFromURLData
 {
     my($self,$variablename) = @_;
@@ -179,10 +158,11 @@ sub getVariableFromURLData
 
     $self->updateDataIfNeeded();
     return $self->{data}{$variablename} if $self->{data}{$variablename};
-
+    
     $self->{data}{$variablename} = $1 if $self->{data}{urldata} =~ m/^\s*"\Q$variablename\E"\s*:\s*"(.*?)",/m;
     return $self->{data}{$variablename};
 }
+
 
 
 sub updateDataIfNeeded
@@ -199,15 +179,7 @@ sub updateDataIfNeeded
     my $urldata     = qx(curl -s -u $self->{username}:$self->{password} "$self->{url}");
     my $urltime     = time();
 
-    $urldata =~ s/^\s+(.*?)\s+$/\1/gs;
-    my $jsonhash;
-     
-    JNX::JLog::trace "jsonstring:".Data::Dumper->Dumper($urldata);
-    eval { $jsonhash = JSON::PP->new->utf8(1)->decode( $urldata ); };
-    JNX::JLog::trace "jsonhash:".Data::Dumper->Dumper($jsonhash);
-    
     $self->{data}{urldate} = $urltime;
-    $self->{jsonhash}   = $jsonhash;
 
     my $bmwtime     = $1 if $urldata =~ m/"updateTime_converted_timestamp"\s+:\s+"(\d{10})\d{3}",/om;
     

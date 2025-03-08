@@ -52,7 +52,7 @@ sub readContentsToHash
             JNX::JLog::trace "Section now: $section";
             next LINE;
         }
-        if( $line =~ m/^([^=]+)\s*\=(\S*)\s*$/o )
+        if( $line =~ m/^([^=]+)\s*\=(.*)$/o )
         {
             my( $key, $value ) = ($1,$2);
 

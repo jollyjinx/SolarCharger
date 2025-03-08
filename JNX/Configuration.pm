@@ -19,7 +19,7 @@ my $alloptions;
 sub newFromDefaults
 {
 	my(%module_defaults) = @_;
-	
+
     my  $current_package_name        = (caller(0))[0] || (caller(1))[0];
     my  $current_package_is_module   = $current_package_name ne 'main';
     my  $current_package_prefix      = $current_package_name.'-';
@@ -39,7 +39,7 @@ sub newFromDefaults
 
     my $module_definitions          = JNX::HashHelper::mergeHashes($always_supported_options,$main_supported_options,\%module_defaults);
     my $all_module_default_options  = {map { $_ => $$module_definitions{$_}[0] } keys %{$module_definitions}};
-    
+
     JNX::JLog::trace 'current module name:'.$current_module_name;
     JNX::JLog::trace 'current package name:'.$current_package_name;
     JNX::JLog::trace $current_package_name.'$module_definitions:'.Data::Dumper->Dumper($module_definitions);
@@ -52,17 +52,17 @@ sub newFromDefaults
 
         my @module_options;
         my @global_options;
-    
+
         while( my($option,$valuearray) = each %{$module_definitions} )
         {
             my($defaultvalue,$type,$required) = @{$valuearray};
-        
+
             $$all_options_merged{$option} = $defaultvalue;
-        
+
             push(@global_options,                         $option.$option_converter{$type});
             push(@module_options, $current_package_prefix.$option.$option_converter{$type});
         }
-    
+
         #JNX::JLog::error $current_package_name.'options:'.Data::Dumper->Dumper($all_options_merged);
 
         my $commandline_options_global = readGetOptionsFromCommandline($current_package_prefix,@global_options);
@@ -70,7 +70,7 @@ sub newFromDefaults
 
         #JNX::JLog::error $current_package_name.'$commandline_options_global:'.Data::Dumper->Dumper($commandline_options_global);
         #JNX::JLog::error $current_package_name.'$commandline_options_module:'.Data::Dumper->Dumper($commandline_options_module);
-    
+
         $commandline_options_merged = JNX::HashHelper::mergeHashes($commandline_options_global,$commandline_options_module);
         #JNX::JLog::error $current_package_name.'$commandline_options_merged:'.Data::Dumper->Dumper($commandline_options_merged);
     }
@@ -79,7 +79,7 @@ sub newFromDefaults
     #JNX::JLog::error $current_package_name.'$configurationfile:'.Data::Dumper->Dumper($configurationfile);
 
     my $configurationfile_options;
-    
+
     if( -e $configurationfile )
     {
         if( my $configurationObject = JNX::IniFiles->new( filename => $configurationfile ) )
@@ -94,12 +94,12 @@ sub newFromDefaults
     }
 #    JNX::JLog::error $current_package_name.'$configurationfile_options:'.Data::Dumper->Dumper($configurationfile_options);
 
-    
+
     $all_options_merged = JNX::HashHelper::mergeHashes(($current_package_is_module?$main_supported_options:undef),$all_module_default_options,$configurationfile_options,$commandline_options_merged);
-    
+
     #JNX::JLog::error $current_package_name.'$configurationfile_options:'.Data::Dumper->Dumper($configurationfile_options);
 
-    
+
     $$alloptions{$current_package_name}{definition}     = $module_definitions;
     $$alloptions{$current_package_name}{merged}         = $all_options_merged;
     $$alloptions{$current_package_name}{name}           = $current_module_name;
@@ -125,7 +125,7 @@ sub newFromDefaults
             {
                 my $value = $$merged{$option_name};
                 my($defaultvalue,$type,$required) = @{$$definition{$option_name}};
-            
+
                 $longest_option = maximum($longest_option,length ''.$option_name);
                 $longest_value  = maximum($longest_value,length ''.$value);
 #                 JNX::JLog::error sprintf  "%s option: %s (%2d max:%2d) value: %s (%2d max:%2d)",$package,$option_name,length($option_name),$longest_option,$value,length($value),$longest_value;
@@ -134,7 +134,7 @@ sub newFromDefaults
         $longest_option = minimum(18,$longest_option)   + 2;
         $longest_value  = minimum(10,$longest_value)    + 2;
 #        JNX::JLog::error sprintf  "(max:%2d max:%2d)",$longest_option,$longest_value;
-    
+
         for my $package (@packages)
         {
             my $definition  = $$alloptions{$package}{definition};
@@ -163,7 +163,7 @@ sub newFromDefaults
                 $helptext .= '['.$name."]\n".$modulehelp;
             }
         }
-    
+
         die $helptext if $showhelp;
         JNX::JLog::error $current_package_name.'log level:'. $$all_options_merged{'loglevel'};
         JNX::JLog::setLevel( $$all_options_merged{'loglevel'} );
@@ -171,7 +171,7 @@ sub newFromDefaults
 #         exit;
        #JNX::JLog::error $current_package_name.'$alloptions:'.Data::Dumper->Dumper($alloptions);
 
-    
+
 #    if( $returningoptions{help} )
 #    {
 #        if( $current_package_is_module )
@@ -194,7 +194,7 @@ sub newFromDefaults
 sub readGetOptionsFromCommandline
 {
     my($packagename_prefix,@getoptions) = @_;
-    
+
     my %real_commandline_arguments;
     my @ARGVCOPY = @ARGV;
     Getopt::Long::Configure('pass_through');
@@ -203,11 +203,11 @@ sub readGetOptionsFromCommandline
 
     #JNX::JLog::error "pkg: $packagename_prefix read:".Data::Dumper->Dumper(%real_commandline_arguments);
     my $returnhash;
-    
+
     while( my($key,$value) = each %real_commandline_arguments )
     {
         #JNX::JLog::error "pkg:$packagename_prefix key:$key value: $value";
-    
+
         $key =~ s/^\Q$packagename_prefix\E//i if $packagename_prefix ne 'main';
         $$returnhash{$key} = $value if length $key;
     }

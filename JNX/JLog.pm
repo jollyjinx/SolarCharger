@@ -31,7 +31,7 @@ use constant names  =>  {
                             JNX::JLog::Level::trace  => 'trace',
                             JNX::JLog::Level::all    => 'all',
                         };
-             
+
 package JNX::JLog;
 
 my $loglevel        = JNX::JLog::Level::warn;
