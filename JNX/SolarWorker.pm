@@ -278,8 +278,8 @@ sub readCarValues
     }
     else
     {
-        $self->{JNX::SolarWorker::SelfKey::decently_charged}  = $carConnector->hasReachedChargeLimitAtHome()      || $self->{JNX::SolarWorker::SelfKey::decently_charged}   || 0;
-        $self->{JNX::SolarWorker::SelfKey::fully_charged}     = $carConnector->hasReachedPVLimitAtHome()          || $self->{JNX::SolarWorker::SelfKey::fully_charged}      || 0;
+        $self->{JNX::SolarWorker::SelfKey::decently_charged}  = $carConnector->hasReachedChargeLimitAtHome();
+        $self->{JNX::SolarWorker::SelfKey::fully_charged}     = $carConnector->hasReachedPVLimitAtHome();
    }
    
     $$car{JNX::SolarWorker::Car::carname}                 = $carConnector->carName();
