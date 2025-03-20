@@ -273,8 +273,7 @@ sub readCarValues
 
     if( !$chargerisconnected )
     {
-        $self->{JNX::SolarWorker::SelfKey::decently_charged}   = 0;
-        $self->{JNX::SolarWorker::SelfKey::fully_charged}      = 0;
+        $self->resetChargeState();
     }
     else
     {
@@ -579,13 +578,14 @@ sub command
         if( $$input{JNX::SolarWorker::WebSettings::chargetype} =~ m/^($matchstring)$/o )
         {
             $self->{JNX::SolarWorker::SelfKey::settings}{JNX::SolarWorker::Settings::chargetype} = $$input{JNX::SolarWorker::WebSettings::chargetype};
+            $self->resetChargeState();
             $settingschanged = 1;
         }
         if( $$input{JNX::SolarWorker::WebSettings::chargelimit} =~ m/^(\d+)$/o )
         {
             $self->{JNX::SolarWorker::SelfKey::settings}{JNX::SolarWorker::Car::chargelimit}        = $$input{JNX::SolarWorker::WebSettings::chargelimit};
             $self->{JNX::SolarWorker::SelfKey::carConnector}->{JNX::SolarWorker::Car::chargelimit}  = $$input{JNX::SolarWorker::WebSettings::chargelimit};
-            $self->{JNX::SolarWorker::SelfKey::decently_charged} = 0;
+            $self->resetChargeState();
             $settingschanged = 1;
         }
         if( $$input{JNX::SolarWorker::WebSettings::chargespeed} =~ m/^(\d+)$/o )
@@ -652,6 +652,16 @@ sub clamp
     my($a,$low,$high) = @_;
 
     return $a < $low ? $low : ( $a > $high ? $high : $a );
+}
+
+sub resetChargeState
+{
+    my ($self) = (@_);
+    
+    $self->{JNX::SolarWorker::SelfKey::decently_charged} = 0;
+    $self->{JNX::SolarWorker::SelfKey::fully_charged} = 0;
+    
+    JNX::JLog::debug "Charge state reset: decently_charged=0 fully_charged=0";
 }
 
 
