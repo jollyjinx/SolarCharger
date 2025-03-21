@@ -335,10 +335,10 @@ sub generateHistoryAndAverage
         {
             $average =  {
                             JNX::SolarWorker::Average::time           =>  $history_time,
-                            JNX::SolarWorker::Average::generation     =>  int( ($$current_usage{JNX::SolarWorker::History::generation_counter}  - $$previous_usage{JNX::SolarWorker::History::generation_counter} ) / $history_time ),
-                            JNX::SolarWorker::Average::feedin         =>  int( ($$current_usage{JNX::SolarWorker::History::feedin_counter}      - $$previous_usage{JNX::SolarWorker::History::feedin_counter}     ) / $history_time ),
-                            JNX::SolarWorker::Average::gridusage      =>  int( ($$current_usage{JNX::SolarWorker::History::grid_counter}        - $$previous_usage{JNX::SolarWorker::History::grid_counter}       ) / $history_time ),
-                            JNX::SolarWorker::Average::chargepower    =>  int( ($$current_usage{JNX::SolarWorker::History::charge_counter}      - $$previous_usage{JNX::SolarWorker::History::charge_counter}     ) / $history_time ),
+                            JNX::SolarWorker::Average::generation     =>  int(  1000.0 * ($$current_usage{JNX::SolarWorker::History::generation_counter}  - $$previous_usage{JNX::SolarWorker::History::generation_counter} ) / $history_time ),
+                            JNX::SolarWorker::Average::feedin         =>  int(  1000.0 * ($$current_usage{JNX::SolarWorker::History::feedin_counter}      - $$previous_usage{JNX::SolarWorker::History::feedin_counter}     ) / $history_time ),
+                            JNX::SolarWorker::Average::gridusage      =>  int(  1000.0 * ($$current_usage{JNX::SolarWorker::History::grid_counter}        - $$previous_usage{JNX::SolarWorker::History::grid_counter}       ) / $history_time ),
+                            JNX::SolarWorker::Average::chargepower    =>  int(  1000.0 * ($$current_usage{JNX::SolarWorker::History::charge_counter}      - $$previous_usage{JNX::SolarWorker::History::charge_counter}     ) / $history_time ),
                         };
         }
 
