@@ -143,7 +143,6 @@ use constant solarsafety    => 'solarsafety';
 package JNX::SolarWorker;
 use JNX::SMAReader;
 use JNX::PhoenixCharger;
-use JNX::BMWConnector;
 use JNX::Configuration;
 use JNX::JSONHelper;
 
